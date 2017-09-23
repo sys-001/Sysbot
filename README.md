@@ -1,6 +1,6 @@
 # Sysbot
 
-Sysbot is a simple Telegram PHP Bot Framework. It's a smoother, ligther, and easier alternative to any other PHP Framework.
+Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
 ### Installation
 
@@ -29,7 +29,7 @@ If you want to create custom commands with custom responses, you must edit *comm
 
 ### Available types and methods
 
-Read *bot.php* to see all available types, and some other methods. (You can send files, forward messages, etc., so why don't you take a look?)
+Read [documentation](https://sys-001.github.io/sysbot) to see all available types, and some other methods. (You can send files, forward messages, etc., so why don't you take a look?)
 
 ### Usage stats
 
@@ -87,10 +87,10 @@ Once you've start upgrading, Sysbot will check if its version is equals to curre
 
 ### Documentation
 
-Coming soon.
+(coming soon) Take a look [here](https://sys-001.github.io/sysbot).
 
 ### Issues
 
 If are experiencing an issue, contact me on [Telegram](https://telegram.me/sys001), or send me an [email](mailto:sys001@etlgr.com).
 
-Anyway, thanks for reading.
+Anyway, read the documentation first. :D
