@@ -4,7 +4,7 @@ Sysbot is a simple Telegram PHP Bot Framework. It's a smoother, ligther, and eas
 
 ### Installation
 
-Just put all repo files on a free host with PHP5 (o later) support and SSL enabled.
+Just put all repo files on a free host with PHP5 (or later) support and SSL enabled.
 
 ### Instantiation
 
@@ -14,7 +14,7 @@ You must set a webhook to *bot.php* file in your web hosting, passing `token` as
 
 Note: You can connect multiple bots to the same *bot.php* file. (You can "clone" your bot, yay!)
 
-### Customizing settings
+### Changing settings
 
 You can edit current bot settings by editing *DATA/management/settings.json* file. Available settings are:
 - `"parse_mode"` -> Messages parse mode. Can be `"HTML"` or `"Markdown"`, according to [Telegram API Docs](https://core.telegram.org/bots/api#formatting-options);
@@ -40,9 +40,11 @@ You can get users and groups where bot is used using `getUsers` and `getGroups` 
 Do you want to create a command which can be used only by a few people? Well, you can do this: just check if `$isAdmin` is true when you catch an update.
 
 >Example:
->`if($msg == "/whoami" and $isAdmin) {`
->`sm($chatID, "root");`
->`}`
+>```php
+>if($msg == "/whoami" and $isAdmin) {
+>sm($chatID, "root");
+>}
+>```
 
 If you want to add an user as an administrator, simply add his Telegram User ID in *DATA/management/admins* file in a new line.
 
@@ -52,11 +54,13 @@ If you want to add an user as an administrator, simply add his Telegram User ID 
 >Etc.
 
 If you don't want to add it manually, you can add this code to *commands.php* file:
->`if(strpos($msg, "/admin ") === 0 and $isAdmin){`
->`$target = str_replace("/admin ", "", $msg);`
->`file_put_contents("DATA/management/admins", PHP_EOL.$target);`
->`sm($chatID, "UserID $target added to admins list.");`
->`}`
+>```php
+>if(strpos($msg, "/admin ") === 0 and $isAdmin){
+>$target = str_replace("/admin ", "", $msg);
+>file_put_contents("DATA/management/admins", PHP_EOL.$target);
+>sm($chatID, "UserID $target added to admins list.");
+>}
+>```
 
 ### Addons
 
@@ -76,10 +80,14 @@ It will also return Sysbot settings.
 A function to update *bot.php* is also included, so, if you want to keep your Sysbot version up to date, do this:
 >`https://yourhost.com/sysbot/bot.php?upgrade=true&password=YOURSHA512HASHEDPASSWORD`
 
-You can set your custom password in *bot.php* file, just edit "password" field in `$settings` array.
+You can set your custom password, just edit "password" field in [settings file](#changing-settings).
 >Remember, default password is: *password* .
 
 Once you've start upgrading, Sysbot will check if its version is equals to current version. If not, it will download latest *bot.php* base, replacing current version.
+
+### Documentation
+
+Coming soon.
 
 ### Issues
 
