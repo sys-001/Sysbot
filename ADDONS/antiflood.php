@@ -1,15 +1,12 @@
 <?PHP 
 if(file_exists("DATA/antiflood/_keep_this")) unlink("DATA/antiflood/_keep_this");
-
-
  //Use your custom settings here
 $antiflood_settings = array(
-"seconds" => 2,
-"messages_number" => 4,
+"seconds" => 1,
+"messages_number" => 3,
 "ban_minutes" => 2,
-"ban_message" => "Flood detected, you're banned from using the bot for ".$antiflood_settings["ban_minutes"]." minutes."
+"ban_message" => "Flood detected, you're banned from using the bot for 2 minutes."
 );
-
 if($chatID > 0 and $isAdmin == false){
   $custom_offset = $antiflood_settings["ban_minutes"] * 60;
   if(file_exists("DATA/antiflood/$userID ban")){
@@ -27,7 +24,7 @@ if($chatID > 0 and $isAdmin == false){
     unlink("DATA/antiflood/$userID msg");
     $antiflood = 1;
   }
-  if($messages_number > $antiflood_settings["messages_number"] and $flood_check < $custom_offset){
+  if($messages_number > $antiflood_settings["messages_number"] and $flood_check < $settings["seconds"]){
     sm($chatID, $antiflood_settings["ban_message"]);
     file_put_contents("DATA/antiflood/$userID ban", time());
     unlink("DATA/antiflood/$userID msg");

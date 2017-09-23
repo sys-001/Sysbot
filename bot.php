@@ -19,7 +19,6 @@ $name = $update["message"]["from"]["first_name"];
 $surname = $update["message"]["from"]["last_name"];
 $isBot = $update["message"]["from"]["is_bot"];
 $admins = file("DATA/management/admins", FILE_IGNORE_NEW_LINES);
-$isAdmin = in_array($userID, $admins);
 if($chatID<0)
 {
   $title = $update["message"]["chat"]["title"];
@@ -63,12 +62,12 @@ if($update["inline_query"])
   $surname = $update["inline_query"]["from"]["last_name"];
   $username = $update["inline_query"]["from"]["username"];
 }
+$isAdmin = in_array($userID, $admins);
 $lang = $update["message"]["from"]["language_code"];
 if(stripos(" ".$lang, "-")) {
   $lang = explode("-", $lang);
   $lang = $lang[0];
 }
-
 function send_action($chatID, $action) {
   global $api;
   $post = array("chat_id" => $chatID, "action" => $action);
@@ -80,7 +79,6 @@ function send_action($chatID, $action) {
   curl_close($curl);
   return $response;
 }
-
 function sm($chatID, $msg, $init_keyboard = 0, $type = 0, $parse_mode = 0){
   global $api;
   global $settings;
@@ -124,7 +122,6 @@ function sm($chatID, $msg, $init_keyboard = 0, $type = 0, $parse_mode = 0){
     return $response;
   }
 }
-
 function sf($chatID, $doc, $msg, $type){
   global $api;
   $type = strtolower($type);
@@ -139,7 +136,6 @@ function sf($chatID, $doc, $msg, $type){
   curl_close($curl);
   return $response;
 }
-
 function cb_reply($msg, $alert = '', $init_keyboard = 0, $type = 0){
   global $api;
   global $chatID;
@@ -165,7 +161,6 @@ function cb_reply($msg, $alert = '', $init_keyboard = 0, $type = 0){
   curl_close($curl);
   return $response;
 }
-
 function iq_reply($iqid, $results, $pm_text = "", $pm_param = ""){
   global $api;
   if($pm_text == ""){
@@ -182,7 +177,6 @@ function iq_reply($iqid, $results, $pm_text = "", $pm_param = ""){
   curl_close($curl);
   return $response;
 }
-
 function forward($fromID, $toID, $msgid){
   global $api;
   $post = array("chat_id" => $toID, "from_chat_id" => $fromID, "message_id" => $msgid);
@@ -194,7 +188,22 @@ function forward($fromID, $toID, $msgid){
   curl_close($curl);
   return $response;
 }
-
+function get_member($chatID, $userID){
+global $api;
+  $post = array("chat_id" => $chatID, "user_id" => $userID);
+  $curl = curl_init(endpoint.'/'.$api.'/getChatMember');
+  curl_setopt($curl, CURLOPT_POST, true);
+  curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($post));
+  curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+  $response = json_decode(curl_exec($curl), true);
+  curl_close($curl);
+  if($response["ok"] and $response["result"]["status"] != "left" and $response["result"]["status"] != "kicked"){
+  return true;
+  }
+  else{
+  return false;
+  }
+}
 function dm($chatID, $msgid){
   global $api;
   $post = array("chat_id" => $chatID, "message_id" => $msgid);
@@ -206,7 +215,6 @@ function dm($chatID, $msgid){
   curl_close($curl);
   return $response;
 }
-
 function ban($chatID, $userID){
   global $api;
   $post = array("chat_id" => $chatID, "user_id" => $userID);
@@ -218,7 +226,6 @@ function ban($chatID, $userID){
   curl_close($curl);
   return $response;
 }
-
 function unban($chatID, $userID){
   global $api;
   $post = array("chat_id" => $chatID, "user_id" => $userID);
@@ -230,23 +237,19 @@ function unban($chatID, $userID){
   curl_close($curl);
   return $response;
 }
-
 function kick($chatID, $userID){
   $ban = ban($chatID, $userID);
   $unban = unban($chatID, $userID);
   return "BAN: $ban \n \n UNBAN: $unban";
 }
-
 function getUsers(){
 	$usercount = new FilesystemIterator("DATA/users", FilesystemIterator::SKIP_DOTS);
     return iterator_count($usercount);
 }
-
 function getGroups(){
 	$usercount = new FilesystemIterator("DATA/groups", FilesystemIterator::SKIP_DOTS);
     return iterator_count($usercount);
 }
-
 function web(){
   global $update;
   global $settings;
@@ -282,14 +285,11 @@ function web(){
     exit;
   }
 }
-
 if($type == "private") touch("DATA/users/$userID");
 if($type == "group" or $type == "supergroup") touch("DATA/groups/$chatID");
-
 if($settings["in_maintenance"]){
   sm($chatID, $settings["maintenance_msg"]);
   exit;
 }
-
 foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) include($addon);
 include("commands.php");
