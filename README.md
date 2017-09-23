@@ -29,7 +29,7 @@ If you want to create custom commands with custom responses, you must edit *comm
 
 ### Available types and methods
 
-Read [documentation](https://sys-001.github.io/sysbot) to see all available types, and some other methods. (You can send files, forward messages, etc., so why don't you take a look?)
+Read [documentation](https://sys-001.github.io/Sysbot) to see all available types, and some other methods. (You can send files, forward messages, etc., so why don't you take a look?)
 
 ### Usage stats
 
@@ -87,7 +87,7 @@ Once you've start upgrading, Sysbot will check if its version is equals to curre
 
 ### Documentation
 
-(coming soon) Take a look [here](https://sys-001.github.io/sysbot).
+(coming soon) Take a look [here](https://sys-001.github.io/Sysbot).
 
 ### Issues
 
