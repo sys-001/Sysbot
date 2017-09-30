@@ -4,7 +4,7 @@ define("endpoint", "https://api.telegram.org");
 $bot_version = "1.0"; //please, don't edit this
 $token = "bot".$_GET["token"];
 $settings = json_decode(file_get_contents("DATA/management/settings.json"));
-$settings->test_mode ? $token = $token : $token = $token."/test" ;
+$settings->test_mode ? $token = $token."/test" : $token = $token;
 $update = json_decode(file_get_contents("php://input"));
 web();
 $admins = file("DATA/management/admins", FILE_IGNORE_NEW_LINES);
