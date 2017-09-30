@@ -22,6 +22,7 @@ You can edit current bot settings by editing *DATA/management/settings.json* fil
 - `"in_maintenance"` -> When in maintenance mode, bot will reply a custom written message and will ignore all commands. Can be `true` or `false`;
 - `"maintenance_msg"` -> Message sent by bot in maintenance mode;
 - `"password"` -> Password used to update the bot.
+->`"test_mode"` -> When in test mode, Sysbot will use Telegram Test Bot API (A.K.A. Deep Telegram Bot API); please note that you must create a bot with Deep Telegram's BotFather, and use its token, otherwise you will get a 401 Unauthorized Error. Can be `true` or `false`. P.S.: You can signup to Telegram Test even from [Telegram Web](https://web.telegram.org/?test=1).
 
 ### Creating commands and responses
 
@@ -41,8 +42,8 @@ Do you want to create a command which can be used only by a few people? Well, yo
 
 >Example:
 >```php
->if($msg == "/whoami" and $isAdmin) {
->sm($chatID, "root");
+>if($update->message->text == "/whoami" and $isAdmin) {
+>sendMessage("root");
 >}
 >```
 
@@ -55,10 +56,10 @@ If you want to add an user as an administrator, simply add his Telegram User ID 
 
 If you don't want to add it manually, you can add this code to *commands.php* file:
 >```php
->if(strpos($msg, "/admin ") === 0 and $isAdmin){
->$target = str_replace("/admin ", "", $msg);
+>if(strpos($update->message->text, "/admin ") === 0 and $isAdmin){
+>$target = str_replace("/admin ", "", $update->message->text);
 >file_put_contents("DATA/management/admins", PHP_EOL.$target);
->sm($chatID, "UserID $target added to admins list.");
+>sendMessage("UserID $target added to admins list.");
 >}
 >```
 
