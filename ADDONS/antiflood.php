@@ -7,27 +7,27 @@ $antiflood_settings = array(
 "ban_minutes" => 2,
 "ban_message" => "Flood detected, you're banned from using the bot for 2 minutes."
 );
-if($chatID > 0 and $isAdmin == false){
+if($update->message->chat->id > 0 and $isAdmin == false){
   $custom_offset = $antiflood_settings["ban_minutes"] * 60;
-  if(file_exists("DATA/antiflood/$userID ban")){
-    $ban_time = file_get_contents("DATA/antiflood/$userID ban");
+  if(file_exists("DATA/antiflood/".$update->message->chat->id." ban")){
+    $ban_time = file_get_contents("DATA/antiflood/".$update->message->chat->id." ban");
 	$ban_check = time() - $ban_time;
-    $ban_check >=  $ban_offset ? unlink("DATA/antiflood/$userID ban") : exit;
+    $ban_check >=  $ban_offset ? unlink("DATA/antiflood/".$update->message->chat->id." ban") : exit;
   }
   else{
-  $last_check = file_get_contents("DATA/antiflood/$userID");
-  file_put_contents("DATA/antiflood/$userID", time());
-  $messages_number = file_get_contents("DATA/antiflood/$userID msg") + 1;
-  file_put_contents("DATA/antiflood/$userID msg", $messages_number);
+  $last_check = file_get_contents("DATA/antiflood/".$update->message->chat->id);
+  file_put_contents("DATA/antiflood/".$update->message->chat->id, time());
+  $messages_number = file_get_contents("DATA/antiflood/".$update->message->chat->id." msg") + 1;
+  file_put_contents("DATA/antiflood/".$update->message->chat->id." msg", $messages_number);
   $flood_check = time() - $last_check;
   if($flood_check < 0){
-    unlink("DATA/antiflood/$userID msg");
+    unlink("DATA/antiflood/".$update->message->chat->id." msg");
     $antiflood = 1;
   }
   if($messages_number > $antiflood_settings["messages_number"] and $flood_check < $settings["seconds"]){
     sm($chatID, $antiflood_settings["ban_message"]);
-    file_put_contents("DATA/antiflood/$userID ban", time());
-    unlink("DATA/antiflood/$userID msg");
+    file_put_contents("DATA/antiflood/".$update->message->chat->id." ban", time());
+    unlink("DATA/antiflood/".$update->message->chat->id." msg");
     unlink("DATA/antiflood/msg");
     exit;
 }

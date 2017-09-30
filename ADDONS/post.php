@@ -1,22 +1,22 @@
 <?PHP
 
-if(strpos($msg, "/post ") === 0)
+if(strpos($update->message->text, "/post ") === 0)
 {
-sm($chatID, "Sending message...");
-$global_msg = str_replace("/global ", "", $msg);
+sendMessage("Sending message...");
+$global_msg = str_replace("/post ", "", $update->message->text);
 $groups = scandir("DATA/groups");
 $users = scandir("DATA/users");
 foreach($users as $user)
 {
-sm($user, "<b>New broadcast message:</b>
+sendMessage("<b>New broadcast message:</b>
 
-$global_msg", "html");
+$global_msg", 0, 0, "html", false, $user);
 }
 foreach($groups as $group)
 {
-sm($group, "<b>New broadcast message:</b>
+sendMessage("<b>New broadcast message:</b>
 
-$global_msg", "html");
+$global_msg", 0, 0, "html", false, $group);
 }
-sm($chatID, "Broadcast message sent.");
+sendMessage("Broadcast message sent.");
 }

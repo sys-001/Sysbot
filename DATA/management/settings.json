@@ -3,5 +3,6 @@
     "send_actions": true,
     "in_maintenance": false,
     "maintenance_msg": "Bot is under maintenance, please wait until I finish my work.",
-    "upgrade_password": "password"
+    "upgrade_password": "password",
+	"test_mode" : false
 }
