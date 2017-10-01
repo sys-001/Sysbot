@@ -26,7 +26,7 @@ function sendRequest($method, $params){
 
 function sendAction($action, $chat_id = 0) {
   global $update;
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
   $post = array("chat_id" => $chat_id, "action" => $action);
   return sendRequest("sendChatAction", $post);
 }
@@ -34,7 +34,7 @@ function sendAction($action, $chat_id = 0) {
 function sendMessage($msg, $init_keyboard = 0, $type = 0, $parse_mode = 0, $silent = false, $chat_id = 0){
   global $update;
   global $settings;
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
   if($parse_mode == 0) $parse_mode = $settings->parse_mode;
   if($settings->send_actions) sendAction($chatID, "typing");
   if($init_keyboard == 0 and $type == 0) $post = array("chat_id" => $chat_id, "text" => $msg, "parse_mode" => $parse_mode);
@@ -52,7 +52,7 @@ function sendMessage($msg, $init_keyboard = 0, $type = 0, $parse_mode = 0, $sile
 function editMessage($msgid, $msg, $inline_keyboard = 0, $parse_mode = 0, $chat_id = 0){
   global $update;
   global $settings;
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
   if($parse_mode == 0) $parse_mode = $settings->parse_mode;
   if($settings->send_actions) sendAction($chatID, "typing");
   $post = array("chat_id" => $chat_id, "message_id" => $msgid, "text" => $msg, "parse_mode" => $parse_mode);
@@ -63,20 +63,20 @@ function editMessage($msgid, $msg, $inline_keyboard = 0, $parse_mode = 0, $chat_
 
 function deleteMessage($msgid, $chat_id = 0){
   global $update;
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
   $post = array("chat_id" => $chat_id, "message_id" => $msgid);
   return sendRequest("deleteMessage", $post);
 }
 
 function forwardMessage($msgid, $to_id, $from_id = 0){
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
   $post = array("chat_id" => $toID, "from_chat_id" => $fromID, "message_id" => $msgid);
   return sendRequest("forwardMessage", $post);
 }
 
 function sendFile($doc, $msg, $type, $chat_id = 0){
   global $update;
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
   $type = strtolower($type);
   if($settings->send_actions) sendAction($chatID, "upload_$type");
   $post = array("chat_id" => $chatID, $type => $doc, "caption" => $msg);
@@ -87,7 +87,7 @@ function sendFile($doc, $msg, $type, $chat_id = 0){
 function answerCallbackQuery($msg, $show_as_alert = false){
   global $update;
   global $settings;
-  if($chat_id == 0) $chat_id = $update->callback_query->chat->id;
+  if($chat_id == 0) $chat_id = $update->callback_query->message->chat->id;
   $post = array("callback_query_id" => $update->callback_query->id, "text" => $msg, "show_alert" => $show_as_alert);
   return sendRequest("answerCallbackQuery", $post);
 }
@@ -195,8 +195,8 @@ function web(){
   }
 }
 
-if($update->message->chat->type == "private") touch("DATA/users/$userID");
-if($update->message->chat->type == "group" or $update->message->chat->type == "supergroup") touch("DATA/groups/$chatID");
+if($update->message->chat->type == "private") touch("DATA/users/".$update->message->chat->id);
+if($update->message->chat->type == "group" or $update->message->chat->type == "supergroup") touch("DATA/groups/".$update->message->chat->id);
 
 if($settings->in_maintenance){
   sendMessage($settings->maintenance_msg);
