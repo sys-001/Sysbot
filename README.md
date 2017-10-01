@@ -1,5 +1,7 @@
 # Sysbot
 
+![Sysbot Logo](logo.png)
+
 Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
 ### Installation
@@ -21,7 +23,7 @@ You can edit current bot settings by editing *DATA/management/settings.json* fil
 - `"send_actions"` -> Bot will send actions like "typing", "sending file", etc. Can be `true` or `false`;
 - `"in_maintenance"` -> When in maintenance mode, bot will reply a custom written message and will ignore all commands. Can be `true` or `false`;
 - `"maintenance_msg"` -> Message sent by bot in maintenance mode;
-- `"password"` -> Password used to update the bot.
+- `"password"` -> Password used to update the bot;
 - `"test_mode"` -> When in test mode, Sysbot will use Telegram Test Bot API (A.K.A. Deep Telegram Bot API); please note that you must create a bot with Deep Telegram's BotFather, and use its token, otherwise you will get a 401 Unauthorized Error. Can be `true` or `false`. P.S.: You can signup to Telegram Test even from [Telegram Web](https://web.telegram.org/?test=1).
 
 ### Creating commands and responses
