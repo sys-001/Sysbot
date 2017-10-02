@@ -1,5 +1,9 @@
 # Sysbot
 
+<p align="center">
+  <img src="logo.png" title="Sysbot-Logo" width="50%">
+</p>
+
 Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
 ### Installation

@@ -18,7 +18,7 @@ if($update->message->text == "/istart"){
 	sendMessage("Sample response with Inline Keyboard.", $menu, 2);
 }
 
-if($update->inline_query->id == "Test"){ //inline mode. Note: it works only if Inline Mode is enabled on your bot.
+if($update->inline_query->query == "Test"){ //inline mode. Note: it works only if Inline Mode is enabled on your bot.
 	$test[] = array('type' => 'article', 'id' => '001' , 'title' => 'Sample title', 'description' => 'Sample description', 'message_text' => 'Sample article');
 	answerInlineQuery($test, "Contact me in private chat", "payload");
 }
@@ -27,14 +27,14 @@ if($update->message->text == "/usage" and $isAdmin){ //sample command that works
 	sendMessage("Bot is used by ".getUsers()." users and ".getGroups()." groups.");
 }
 
-if($update->callback_query->id == "button_1"){
+if($update->callback_query->data == "button_1"){
 	sendMessage("Sample response from Button 1.");
 }
 
-if($update->callback_query->id == "button_2"){
-	answerCallbackQuery("Sample dialog from Button 2.");
+if($update->callback_query->data == "button_2"){
+	answerCallbackQuery("Sample toast from Button 2.");
 }
 
-if($update->callback_query->id == "button_3"){
+if($update->callback_query->data == "button_3"){
 	answerCallbackQuery("Sample alert from Button 3.", 1);
 }
