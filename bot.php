@@ -56,7 +56,7 @@ function editMessage($msgid, $msg, $inline_keyboard = 0, $parse_mode = 0, $chat_
   if($parse_mode == 0) $parse_mode = $settings->parse_mode;
   if($settings->send_actions) sendAction($chatID, "typing");
   $post = array("chat_id" => $chat_id, "message_id" => $msgid, "text" => $msg, "parse_mode" => $parse_mode);
-  if(is_array($init_keyboard)) $keyboard = array("inline_keyboard" => $init_keyboard);
+  if(is_array($inline_keyboard)) $keyboard = array("inline_keyboard" => $inline_keyboard);
   if(is_array($keyboard)) $post["reply_markup"] = json_encode($keyboard);
   return sendRequest("editMessageText", $post);
 }
