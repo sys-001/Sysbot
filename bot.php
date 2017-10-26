@@ -1,17 +1,10 @@
 <?php
 
+if(file_exists("DATA/users/.keep_this")) unlink("DATA/users/.keep_this");
+if(file_exists("DATA/groups/.keep_this")) unlink("DATA/groups/.keep_this");
 define("endpoint", "https://api.telegram.org");
-$bot_version = "1.0"; //please, don't edit this
-$token = "bot".$_GET["token"];
+define("bot_version", "1.0"); //please, don't edit this
 $settings = json_decode(file_get_contents("DATA/management/settings.json"));
-$settings->test_mode ? $token = $token."/test" : $token = $token;
-$update = json_decode(file_get_contents("php://input"));
-web();
-$admins = file("DATA/management/admins", FILE_IGNORE_NEW_LINES);
-if(file_exists("DATA/users/_keep_this")) unlink("DATA/users/_keep_this");
-if(file_exists("DATA/groups/_keep_this")) unlink("DATA/groups/_keep_this");
-if(!empty($update->message->reply_to_message)) $update->message = $update->message->reply_to_message;
-$isAdmin = in_array($update->message->from->id, $admins) or in_array($update->callback_query->from->id, $admins);
 
 function sendRequest($method, $params){
   global $token;
@@ -162,24 +155,24 @@ function getGroups(){
 function web(){
   global $update;
   global $settings;
-  global $bot_version;
   if($_GET["info"]) {
   	$users = getUsers();
     $groups = getGroups();
     $send_actions = $settings->send_actions ? "true" : "false";
     $maintenance_enabled = $settings->in_maintenance ? "true" : "false";
+	$getUpdates_enabled = $settings->getUpdates->enabled ? "true" : "false";
     echo "<head><title>Sysbot Info</title></head>";
     echo "<h1>Sysbot Info</h1>";
-    echo "<h3>Version</h3>", "<p>Sysbot v$bot_version</p>";
+    echo "<h3>Version</h3>", "<p>Sysbot v".bot_version."</p>";
     echo "<h3>Usage Stats</h3>", "<p>Current users: $users</p>", "<p>Current groups: $groups</p>";
-    echo "<h3>Bot Settings</h3>","<p>Parse mode: ".$settings->parse_mode."</p>","<p>Actions send: $send_actions</p>","<p>Maintenance mode enabled: $maintenance_enabled (message: ".$settings->maintenance_msg.")</p>";
+    echo "<h3>Bot Settings</h3>","<p>Parse mode: ".$settings->parse_mode."</p>","<p>Actions send: $send_actions</p>","<p>Maintenance mode enabled: $maintenance_enabled (message: ".$settings->maintenance_msg.")</p>", "<p>GetUpdates mode: $getUpdates_enabled</p>";
     exit;
   }
   elseif($_GET["upgrade"] and $_GET["password"] == hash("sha512", $settings->upgrade_password)){
   	echo "<head><title>Sysbot Upgrade</title></head>";
-    echo "<h1>Sysbot Upgrade</h1>", "<p>Current Version: v$bot_version</p>";
+    echo "<h1>Sysbot Upgrade</h1>", "<p>Current Version: v".bot_version."</p>";
 	$remote_version = file_get_contents("http://sysbot.altervista.org/index.php?check=true");
-	if(version_compare($bot_version, $remote_version) < 0){
+	if(version_compare(bot_version, $remote_version) < 0){
       $remote_bot = file_get_contents("http://sysbot.altervista.org/index.php?upgrade=true");
 	  echo "<b>Sysbot upgraded to v$remote_version</b>";
 	  file_put_contents("bot.php", $remote_bot);
@@ -189,19 +182,35 @@ function web(){
 	}
     exit;
   }
-  if(!$update){
-    header(':', true, 401);
-    exit;
   }
 }
 
-if($update->message->chat->type == "private") touch("DATA/users/".$update->message->chat->id);
-if($update->message->chat->type == "group" or $update->message->chat->type == "supergroup") touch("DATA/groups/".$update->message->chat->id);
-
-if($settings->in_maintenance){
-  sendMessage($settings->maintenance_msg);
-  exit;
+web();
+$admins = file("DATA/management/admins", FILE_IGNORE_NEW_LINES);
+if($settings->getUpdates->enabled){
+	$settings->test_mode ? $token = "bot".$settings->getUpdates->token."/test" : $token = "bot".$settings->getUpdates->token;
+	while(true){
+		$last_offset = file_get_contents("DATA/management/offset");
+		empty($last_offset) ? $current_offset = 1 : $current_offset = intval($last_offset) + 1;
+		file_put_contents("DATA/management/offset", $current_offset);
+		$update = json_decode(sendRequest("getUpdates", array("offset" => $current_offset)));
+		if(!empty($update->message->reply_to_message)) $update->message = $update->message->reply_to_message;
+		$isAdmin = in_array($update->message->from->id, $admins) or in_array($update->callback_query->from->id, $admins);
+		if($update->message->chat->type == "private") touch("DATA/users/".$update->message->chat->id);
+		if($update->message->chat->type == "group" or $update->message->chat->type == "supergroup") touch("DATA/groups/".$update->message->chat->id);
+		if($settings->in_maintenance) sendMessage($settings->maintenance_msg) && exit;
+		foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) include($addon);
+		include("commands.php");
 }
-
-foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) include($addon);
-include("commands.php");
+}
+else{
+	$settings->test_mode ? $token = $token = "bot".$_GET["token"]."/test" : $token = "bot".$_GET["token"];
+	$update = json_decode(file_get_contents("php://input"));
+	if(!empty($update->message->reply_to_message)) $update->message = $update->message->reply_to_message;
+	$isAdmin = in_array($update->message->from->id, $admins) or in_array($update->callback_query->from->id, $admins);
+	if($update->message->chat->type == "private") touch("DATA/users/".$update->message->chat->id);
+	if($update->message->chat->type == "group" or $update->message->chat->type == "supergroup") touch("DATA/groups/".$update->message->chat->id);
+	if($settings->in_maintenance) sendMessage($settings->maintenance_msg) && exit;
+	foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) include($addon);
+	include("commands.php");
+}

@@ -1,5 +1,5 @@
 <?PHP 
-if(file_exists("DATA/antiflood/_keep_this")) unlink("DATA/antiflood/_keep_this");
+if(file_exists("DATA/antiflood/.keep_this")) unlink("DATA/antiflood/.keep_this");
  //Use your custom settings here
 $antiflood_settings = array(
 "seconds" => 1,
@@ -25,7 +25,7 @@ if($update->message->chat->id > 0 and $isAdmin == false){
     $antiflood = 1;
   }
   if($messages_number > $antiflood_settings["messages_number"] and $flood_check < $settings["seconds"]){
-    sm($chatID, $antiflood_settings["ban_message"]);
+    sendMessage($antiflood_settings["ban_message"]);
     file_put_contents("DATA/antiflood/".$update->message->chat->id." ban", time());
     unlink("DATA/antiflood/".$update->message->chat->id." msg");
     unlink("DATA/antiflood/msg");
