@@ -12,11 +12,17 @@ Just put all repo files on a free host with PHP5 (or later) support and SSL enab
 
 ### Instantiation
 
+##### Using Webhook
+
 You must set a webhook to *bot.php* file in your web hosting, passing `token` as parameter.
 > Explaination:
 >`https://api.telegram.org/botTOKEN/setWebhook?url=https://yourhost.com/sysbot/bot.php?token=TOKEN`
 
 Note: You can connect multiple bots to the same *bot.php* file. (You can "clone" your bot, yay!)
+
+##### Using getUpdates
+
+Enable *getUpdates* from [settings](#changing-settings), then change the *token* from 'NONE' to your token (**only token, DO NOT write 'botTOKEN'**!).
 
 ### Changing settings
 
@@ -25,8 +31,12 @@ You can edit current bot settings by editing *DATA/management/settings.json* fil
 - `"send_actions"` -> Bot will send actions like "typing", "sending file", etc. Can be `true` or `false`;
 - `"in_maintenance"` -> When in maintenance mode, bot will reply a custom written message and will ignore all commands. Can be `true` or `false`;
 - `"maintenance_msg"` -> Message sent by bot in maintenance mode;
-- `"password"` -> Password used to update the bot.
+- `"password"` -> Password used to update the bot;
 - `"test_mode"` -> When in test mode, Sysbot will use Telegram Test Bot API (A.K.A. Deep Telegram Bot API); please note that you must create a bot with Deep Telegram's BotFather, and use its token, otherwise you will get a 401 Unauthorized Error. Can be `true` or `false`. P.S.: You can signup to Telegram Test even from [Telegram Web](https://web.telegram.org/?test=1).
+
+Other settings are only for getUpdates mode:
+- `"enabled"` -> Bot will use getUpdates with specified token. Can be `true` or `false`;
+- `"token"` -> Token used by bot in getUpdates mode.
 
 ### Creating commands and responses
 
