@@ -182,7 +182,6 @@ function web(){
 	}
     exit;
   }
-  }
 }
 
 web();
