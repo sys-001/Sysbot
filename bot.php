@@ -61,9 +61,10 @@ function deleteMessage($msgid, $chat_id = 0){
   return sendRequest("deleteMessage", $post);
 }
 
-function forwardMessage($msgid, $to_id, $from_id = 0){
-  if($chat_id == 0) !empty($update->message) ? $chat_id = $update->message->chat->id : $chat_id = $update->callback_query->message->chat->id;
-  $post = array("chat_id" => $toID, "from_chat_id" => $fromID, "message_id" => $msgid);
+function forwardMessage($msgid, $from_id, $to_id = 0){
+  global $update;
+  if($to_id == 0) !empty($update->message) ? $to_id = $update->message->chat->id : $to_id = $update->callback_query->message->chat->id;
+  $post = array("chat_id" => $to_id, "from_chat_id" => $from_id, "message_id" => $msgid);
   return sendRequest("forwardMessage", $post);
 }
 
