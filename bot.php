@@ -78,7 +78,7 @@ function sendFile($doc, $msg, $type, $chat_id = 0){
   return sendRequest("send".$type, $post);
 }
 
-function answerCallbackQuery($msg, $show_as_alert = false){
+function answerCallbackQuery($msg, $show_as_alert = false, $chat_id = 0){
   global $update;
   global $settings;
   if($chat_id == 0) $chat_id = $update->callback_query->message->chat->id;
