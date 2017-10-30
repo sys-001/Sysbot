@@ -18,8 +18,9 @@ Requirements:
 - mysql (optional but recommended, a database is always useful).
 
 Install required dependencies, then clone Sysbot repo:
-bash
+```bash
 $ git clone https://github.com/sys-001/Sysbot.git
+```
 
 All done, you have successfully installed Sysbot!
 
