@@ -6,6 +6,8 @@
 
 Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
+**NOTE: README must be updated ASAP.**
+
 ### Installation
 
 Just put all repo files on a free host with PHP5 (or later) support and SSL enabled.
