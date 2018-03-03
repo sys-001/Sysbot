@@ -188,7 +188,10 @@ if($_GET["info"]) {
 elseif($_POST["upgrade_password"]){
 	echo "<head><title>Sysbot Upgrade</title></head>";
     echo "<h1>Sysbot Upgrade</h1>", "<p>Current Version: v".bot_version."</p>";
-	if(hash("sha512", $_POST["upgrade_password"]) != $settings->upgrade_password) echo "<b>Password validation failed!</b>" && exit;
+	if(hash("sha512", $_POST["upgrade_password"]) != $settings->upgrade_password){
+    echo "<b>Fatal Error: Password validation failed!</b>";
+    die;
+    }
 	$remote_version = file_get_contents("https://raw.githubusercontent.com/sys-001/Sysbot/master/.ver");
 	if(version_compare(bot_version, $remote_version) < 0){
       file_put_contents("bot_upgrade.zip", file_get_contents("https://github.com/sys-001/Sysbot/archive/master.zip"));
@@ -198,7 +201,7 @@ elseif($_POST["upgrade_password"]){
 		  $zip->extractTo("./");
 		  $zip->close();
 		  foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) unlink($addon);
-		  foreach(iterator_to_array(new FilesystemIterator("Sysbot-master/ADDONS", FilesystemIterator::SKIP_DOTS)) as $new_addon) copy($new_addon, "ADDONS/".str_replace("bot_upgrade/ADDONS/", "", $new_addon));
+		  foreach(iterator_to_array(new FilesystemIterator("Sysbot-master/ADDONS", FilesystemIterator::SKIP_DOTS)) as $new_addon) copy($new_addon, "ADDONS/".str_replace("Sysbot-master/ADDONS/", "", $new_addon));
 		  unlink("bot.php");
 		  copy("Sysbot-master/bot.php", "bot.php");
 		  foreach(iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator('Sysbot-master', FilesystemIterator::SKIP_DOTS))) as $file) unlink($file);

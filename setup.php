@@ -29,8 +29,9 @@ if(!empty($_POST)){
 	file_put_contents("DATA/management/settings.json", json_encode($settings_array, 128));
 	$test_string = $test_mode ? "/test" : "";
 	$ch = curl_init("https://api.telegram.org/bot".$_POST["token"].$test_string."/deleteWebhook");
-  		curl_exec($ch);
-  		curl_close($ch);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  	curl_exec($ch);
+  	curl_close($ch);
 	if(!empty($getupdates_token)){
 		$decipher = "<?php
 
