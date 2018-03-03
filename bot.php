@@ -181,35 +181,30 @@ if($_GET["info"]) {
     echo "<h3>Bot Settings</h3>","<p>Parse mode: ".$settings->parse_mode."</p>","<p>Actions send: $send_actions</p>","<p>Maintenance mode enabled: $maintenance_enabled (message: ".$settings->maintenance_msg.")</p>", "<p>GetUpdates mode: $getUpdates_enabled</p>";
     echo "<h3>Version</h3>", "<p>Sysbot v".bot_version."</p>";
     $remote_version = file_get_contents("https://raw.githubusercontent.com/sys-001/Sysbot/master/.ver");
-	echo version_compare(bot_version, $remote_version) < 0 ? "<b>A new update is available; if you wish to download it, you must enter your Upgrade Password.</b><br><br><form action='#' method='post'>Upgrade password:<br><input type='password' name='upgrade_password'/><br><br><input type='submit' name='submit' value='Start upgrade'/></form>" : "<b>Sysbot is up-to-date.</b>";
+	echo version_compare(bot_version, $remote_version) < 0 ? "<b>A new update is available; if you wish to download it, you must enter your Upgrade Password.</b><br><br><form action='bot.php' method='post'>Upgrade password:<br><input type='password' name='upgrade_password'/><br><br><input type='submit' name='submit' value='Start upgrade'/></form>" : "<b>Sysbot is up-to-date.</b>";
 	echo "</center>";
 	exit;
 }
-elseif($_POST["upgrade"]){
+elseif($_POST["upgrade_password"]){
 	echo "<head><title>Sysbot Upgrade</title></head>";
     echo "<h1>Sysbot Upgrade</h1>", "<p>Current Version: v".bot_version."</p>";
-	if(sha512($_POST["upgrade_password"]) != $settings->upgrade_password) echo "<b>Password validation failed!</b>" && exit;
+	if(hash("sha512", $_POST["upgrade_password"]) != $settings->upgrade_password) echo "<b>Password validation failed!</b>" && exit;
 	$remote_version = file_get_contents("https://raw.githubusercontent.com/sys-001/Sysbot/master/.ver");
 	if(version_compare(bot_version, $remote_version) < 0){
       file_put_contents("bot_upgrade.zip", file_get_contents("https://github.com/sys-001/Sysbot/archive/master.zip"));
 	  $zip = new ZipArchive;
 	  $res = $zip->open("bot_upgrade.zip");
 	  if ($res === TRUE) {
-		  $zip->extractTo("bot_upgrade");
+		  $zip->extractTo("./");
 		  $zip->close();
 		  foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) unlink($addon);
-		  foreach(iterator_to_array(new FilesystemIterator("bot_upgrade/ADDONS", FilesystemIterator::SKIP_DOTS)) as $new_addon) copy($new_addon, "ADDONS/".str_replace("bot_upgrade/ADDONS/", "", $new_addon));
+		  foreach(iterator_to_array(new FilesystemIterator("Sysbot-master/ADDONS", FilesystemIterator::SKIP_DOTS)) as $new_addon) copy($new_addon, "ADDONS/".str_replace("bot_upgrade/ADDONS/", "", $new_addon));
 		  unlink("bot.php");
-		  copy("bot_upgrade/bot.php", "bot.php");
-		  $temp_files = glob("bot_upgrade/*");
-		  foreach($temp_files as $temp_file){
-			  if(is_file($file)){
-				  unlink($file);
-			  }
-		  rmdir("bot_upgrade");
-		  unlink("bot_upgrade.zip");
-		  echo "<b>Sysbot upgraded to v$remote_version</b>";
-		  }
+		  copy("Sysbot-master/bot.php", "bot.php");
+		  foreach(iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator('Sysbot-master', FilesystemIterator::SKIP_DOTS))) as $file) unlink($file);
+          rmdir("Sysbot-master/docs/methods") && rmdir("Sysbot-master/docs") && rmdir("Sysbot-master/ADDONS") && rmdir("Sysbot-master");
+          unlink("bot_upgrade.zip");
+      echo "<b>Sysbot upgraded to v$remote_version</b>";
 		}
 	else{
 	  echo "<b>Sysbot is up-to-date.</b>";
