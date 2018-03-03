@@ -217,13 +217,14 @@ elseif($_POST["upgrade_password"]){
 }
 
 if($settings->getUpdates->enabled){
+	$offset = 0;
 	require("crypto.php");
 	$settings->test_mode ? $token = "bot".$getUpdates_token."/test" : $token = "bot".$getUpdates_token;
+    foreach($settings->admins as $admin) sendMessage("Bot started correctly.", 0, 0, 0, true, false, 0, $admin);
 	while(true){
-		$last_offset = file_get_contents("DATA/management/offset");
-		empty($last_offset) ? $current_offset = 1 : $current_offset = intval($last_offset) + 1;
-		file_put_contents("DATA/management/offset", $current_offset);
-		$update = json_decode(sendRequest("getUpdates", array("offset" => $current_offset)));
+		$response = json_decode(sendRequest("getUpdates", array("offset" => $offset)));
+        foreach($response->result as $update){
+        $offset = $update->update_id;
 		if(!empty($update->message->reply_to_message)) $update->message = $update->message->reply_to_message;
 		$isAdmin = in_array($update->message->from->id, $settings->admins) or in_array($update->callback_query->from->id, $settings->admins);
 		if($update->message->chat->type == "private") touch("DATA/users/".$update->message->chat->id);
@@ -231,6 +232,14 @@ if($settings->getUpdates->enabled){
 		if($settings->in_maintenance and $update->message->chat->type == "private") sendMessage($settings->maintenance_msg) && exit;
 		foreach(iterator_to_array(new FilesystemIterator("ADDONS", FilesystemIterator::SKIP_DOTS)) as $addon) include($addon);
 		include("commands.php");
+        if($update->message->text == "/halt"){
+        sendMessage("Shutting down...");
+        $offset++;
+        sendRequest("getUpdates", array("offset" => $offset));
+        exit;
+        }
+        }
+        $offset++;
 	}
 }
 else{
