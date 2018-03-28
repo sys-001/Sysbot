@@ -137,14 +137,14 @@ function banMember($user_id, $chat_id){
   return sendRequest("kickChatMember", $post);
 }
 
-function unbanMember($chat_id, $user_id){
+function unbanMember($user_id, $chat_id){
   $post = array("chat_id" => $chat_id, "user_id" => $user_id);
   return sendRequest("unbanChatMember", $post);
 }
 
-function kickMember($chat_id, $user_id){
-  $ban = banMember($chat_id, $user_id);
-  $unban = unbanMember($chat_id, $user_id);
+function kickMember($user_id, $chat_id){
+  $ban = banMember($user_id, $chat_id);
+  $unban = unbanMember($user_id, $chat_id);
   return "BAN: $ban \n \n UNBAN: $unban";
 }
 
