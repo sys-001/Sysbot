@@ -4,9 +4,9 @@
   <img src="logo.png" title="Sysbot-Logo" width="50%">
 </p>
 
-Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
+**NOTE: README and documentation are incomplete: I'll update them as soon as possible.**
 
-**NOTE: README must be updated ASAP.**
+Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
 ### Installation
 
@@ -14,31 +14,24 @@ Just put all repo files on a free host with PHP5 (or later) support and SSL enab
 
 ### Instantiation
 
-##### Using Webhook
-
-You must set a webhook to *bot.php* file in your web hosting, passing `token` as parameter.
-> Explaination:
->`https://api.telegram.org/botTOKEN/setWebhook?url=https://yourhost.com/sysbot/bot.php?token=TOKEN`
-
-Note: You can connect multiple bots to the same *bot.php* file. (You can "clone" your bot, yay!)
-
-##### Using getUpdates
-
-Enable *getUpdates* from [settings](#changing-settings), then change the *token* from 'NONE' to your token (**only token, DO NOT write 'botTOKEN'**!).
+Open *setup.php* in your browser and fill all fields.
 
 ### Changing settings
 
 You can edit current bot settings by editing *DATA/management/settings.json* file. Available settings are:
+- `"admins"` -> List of Bot administrators. Read [bot administration section](#bot-administration) for further instructions;
 - `"parse_mode"` -> Messages parse mode. Can be `"HTML"` or `"Markdown"`, according to [Telegram API Docs](https://core.telegram.org/bots/api#formatting-options);
 - `"send_actions"` -> Bot will send actions like "typing", "sending file", etc. Can be `true` or `false`;
 - `"in_maintenance"` -> When in maintenance mode, bot will reply a custom written message and will ignore all commands. Can be `true` or `false`;
 - `"maintenance_msg"` -> Message sent by bot in maintenance mode;
-- `"password"` -> Password used to update the bot;
+- `"password"` -> SHA512 hashed password used to upgrade the framework;
 - `"test_mode"` -> When in test mode, Sysbot will use Telegram Test Bot API (A.K.A. Deep Telegram Bot API); please note that you must create a bot with Deep Telegram's BotFather, and use its token, otherwise you will get a 401 Unauthorized Error. Can be `true` or `false`. P.S.: You can signup to Telegram Test even from [Telegram Web](https://web.telegram.org/?test=1).
 
-Other settings are only for getUpdates mode:
+Other settings are for getUpdates mode:
 - `"enabled"` -> Bot will use getUpdates with specified token. Can be `true` or `false`;
-- `"token"` -> Token used by bot in getUpdates mode.
+- `"token"` -> Encrypted token used by bot in getUpdates mode.
+
+
 
 ### Creating commands and responses
 
@@ -63,18 +56,24 @@ Do you want to create a command which can be used only by a few people? Well, yo
 >}
 >```
 
-If you want to add an user as an administrator, simply add his Telegram User ID in *DATA/management/admins* file in a new line.
+If you want to add an user as an administrator, simply add his Telegram User ID in *DATA/management/settings.json* file, under *admins* field.
 
 >Example:
->123456789
->012345678
->Etc.
+>```json
+>"admins": [
+>"123456789",
+>"234567890"
+>],
+>```
 
 If you don't want to add it manually, you can add this code to *commands.php* file:
 >```php
 >if(strpos($update->message->text, "/admin ") === 0 and $isAdmin){
 >$target = str_replace("/admin ", "", $update->message->text);
->file_put_contents("DATA/management/admins", PHP_EOL.$target);
+>$admins = $settings->admins; //don't edit directly settings
+>$admins[] = $target;
+>$settings->admins = $admins; //pushing new settings
+>file_put_contents("DATA/management/settings.json", $settings); //saving updated settings
 >sendMessage("UserID $target added to admins list.");
 >}
 >```
@@ -90,17 +89,12 @@ The *ADDONS* folder contains two plugins:
 I've also written a small function to see some informations directly from a browser:
 >`https://yourhost.com/sysbot/bot.php?info=true`
 
-It will also return Sysbot settings.
-
-### Updating
-
-A function to update *bot.php* is also included, so, if you want to keep your Sysbot version up to date, do this:
->`https://yourhost.com/sysbot/bot.php?upgrade=true&password=YOURSHA512HASHEDPASSWORD`
+You can also upgrade the framework through it.
 
 You can set your custom password, just edit "password" field in [settings file](#changing-settings).
 >Remember, default password is: *password* .
 
-Once you've start upgrading, Sysbot will check if its version is equals to current version. If not, it will download latest *bot.php* base, replacing current version.
+
 
 ### Documentation
 
@@ -108,6 +102,6 @@ Once you've start upgrading, Sysbot will check if its version is equals to curre
 
 ### Issues
 
-If are experiencing an issue, contact me on [Telegram](https://telegram.me/sys001), or send me an [email](mailto:sys001@etlgr.com).
+If are experiencing an issue, contact me on [Telegram](https://telegram.me/sys002), or send me an [email](mailto:sys-001@etlgr.com).
 
 Anyway, read the documentation first. :D
