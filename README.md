@@ -4,7 +4,7 @@
   <img src="logo.png" title="Sysbot-Logo" width="50%">
 </p>
 
-**NOTE: README and documentation are incomplete: I'll update them as soon as possible.**
+**NOTE: Documentation is incomplete: I'll update it as soon as possible.**
 
 Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
@@ -27,15 +27,33 @@ You can edit current bot settings by editing *DATA/management/settings.json* fil
 - `"password"` -> SHA512 hashed password used to upgrade the framework;
 - `"test_mode"` -> When in test mode, Sysbot will use Telegram Test Bot API (A.K.A. Deep Telegram Bot API); please note that you must create a bot with Deep Telegram's BotFather, and use its token, otherwise you will get a 401 Unauthorized Error. Can be `true` or `false`. P.S.: You can signup to Telegram Test even from [Telegram Web](https://web.telegram.org/?test=1).
 
-Other settings are for getUpdates mode:
+Sub-settings for getUpdates:
 - `"enabled"` -> Bot will use getUpdates with specified token. Can be `true` or `false`;
 - `"token"` -> Encrypted token used by bot in getUpdates mode.
 
+Sub-settings for Anti-flood:
+- `"seconds"` -> Number of seconds needed to trigger the Anti-flood;
+- `"messages_number"` -> Number of message needed to trigger the Anti-flood;
+- `"ban_minutes"` -> Ban duration;
+- `"ban_message"` -> Message sent to user while banned.
 
+Note: If you are lazy/noob, you can delete *DATA/management/settings.json* file: opening *bot.php* through your browser, you will be able to re-run setup.
 
 ### Creating commands and responses
 
-If you want to create custom commands with custom responses, you must edit *commands.php*. I've included some sample code there, so you can easily understand how it works.
+If you want to create custom commands with custom responses, you must edit *commands.php*. I've included some sample code there, so you can easily understand how it works. However, I'm writing a little example here:
+
+>```php
+>if($update->message->text == "/command") {
+>sendMessage("Response");
+>}
+>```
+
+For simple commands, you can also use one-line version:
+
+>```php
+>if($update->message->text == "/command") sendMessage("Response");
+>```
 
 ### Available types and methods
 
@@ -91,14 +109,9 @@ I've also written a small function to see some informations directly from a brow
 
 You can also upgrade the framework through it.
 
-You can set your custom password, just edit "password" field in [settings file](#changing-settings).
->Remember, default password is: *password* .
-
-
-
 ### Documentation
 
-(coming soon) Take a look [here](https://sys-001.github.io/Sysbot).
+(Needs to be updated) Take a look [here](https://sys-001.github.io/Sysbot).
 
 ### Issues
 
