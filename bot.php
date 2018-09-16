@@ -33,7 +33,7 @@ if($Bot->use_polling){
 	$offset = 0;
 	foreach($Bot->settings->general->admins as $admin) $Bot->sendMessage("Bot started correctly.", $admin);
 	while(true){
-		$response = json_decode($Bot->getUpdates(['offset' => $offset]));
+		$response = $Bot->getUpdates(['offset' => $offset]);
         foreach($response->result as $update){
 			$Bot->update = $update;
 			$offset = $update->update_id;
