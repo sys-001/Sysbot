@@ -1,3 +1,3 @@
 <?php
 
-if($update->message->text == "/start") $Bot->sendMessage("Hi");
+if("/start" == $update->message->text) $Bot->sendMessage("Hi");
