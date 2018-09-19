@@ -1,6 +1,6 @@
 <?php
 
-require_once "res/core.php";
+require_once "src/core.php";
 
 define("TOKEN", "123456:BOT_TOKEN_HERE");
 define("SETTINGS_PATH", "data/management/bot.settings");
