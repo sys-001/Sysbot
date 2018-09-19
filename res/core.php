@@ -1,5 +1,6 @@
 <?php
 
+/** @noinspection PhpIncludeInspection */
 require 'vendor/autoload.php';
 require_once "settingsProvider.php";
 
@@ -20,7 +21,7 @@ class TelegramBot
     function setHook(string $update_type, string $command, callable $action): void
     {
         $available_types = ["message::text", "message::caption", "edited_message::text", "edited_message::caption", "channel_post::text", "channel_post::caption", "edited_channel_post::text", "edited_channel_post::caption", "inline_query::query", "chosen_inline_result::query", "callback_query::data"];
-        if(!in_array($update_type, $available_types)) die("Invalid update type");
+        if (!in_array($update_type, $available_types)) die("Invalid update type");
         $this->hooks[$update_type][$command][] = $action;
         return;
     }
@@ -39,14 +40,19 @@ class TelegramBot
             return $update->message->chat->id;
         } elseif (!empty($update->callback_query->message->chat->id)) {
             return $update->callback_query->message->chat->id;
-        } else {
-            return null;
         }
+        return null;
+    }
+
+    private function getCallbackQueryID(stdClass $update): int
+    {
+        if (!empty($update->callback_query->id)) return $update->callback_query->id;
+        return null;
     }
 
     function sendRequest(string $method, array $params): stdClass
     {
-        try{
+        try {
             $response = $this->client->post($method, [
                 'form_params' => $params,
                 'headers' => [
@@ -54,8 +60,8 @@ class TelegramBot
                     'Keep-Alive' => '120',
                 ]
             ]);
-        } catch(ClientException $e){
-            return (object) ["ok" => false];
+        } catch (ClientException $e) {
+            return (object)["ok" => false];
         }
 
         return json_decode($response->getBody());
@@ -98,31 +104,31 @@ class TelegramBot
         return $this->sendRequest("getWebhookInfo", []);
     }
 
-    function generateReplyKeyboardButton(string $text, bool $request_contact = false, bool$request_location = false): array
+    function generateReplyKeyboardButton(string $text, bool $request_contact = false, bool $request_location = false): array
     {
         return ["text" => $text,
-        "request_contact" => $request_contact,
-        "request_location" => $request_location
+            "request_contact" => $request_contact,
+            "request_location" => $request_location
         ];
     }
 
     function generateReplyKeyboardRow(array $buttons): array
     {
         $row = [];
-        foreach($buttons as $button){
+        foreach ($buttons as $button) {
             $row[] = $button;
         }
-    return $row;
+        return $row;
     }
 
     function generateReplyKeyboard(array $rows, array $params = []): string
     {
         $keyboard = [];
-        foreach($params as $param => $value){
+        foreach ($params as $param => $value) {
             $keyboard[$param] = $value;
         }
         $keyboard_buttons = [];
-        foreach($rows as $row){
+        foreach ($rows as $row) {
             $keyboard_buttons[] = $row;
         }
         $keyboard["keyboard"] = $keyboard_buttons;
@@ -145,11 +151,11 @@ class TelegramBot
 
     function generateInlineKeyboardButton(string $text, string $callback_action, string $callback_content): array
     {
-    $allowed_actions = ["url", "callback_data", "switch_inline_query", "switch_inline_query_current_chat", "callback_game", "pay"];
-    if(!in_array($callback_action, $allowed_actions)) die("Invalid callback action provided");
-    return ["text" => $text,
-        $callback_action => $callback_content
-    ];
+        $allowed_actions = ["url", "callback_data", "switch_inline_query", "switch_inline_query_current_chat", "callback_game", "pay"];
+        if (!in_array($callback_action, $allowed_actions)) die("Invalid callback action provided");
+        return ["text" => $text,
+            $callback_action => $callback_content
+        ];
     }
 
     function generateInlineKeyboardRow(array $buttons): array
@@ -164,7 +170,7 @@ class TelegramBot
     function generateInlineKeyboard(array $rows): string
     {
         $keyboard = [];
-        foreach($rows as $row){
+        foreach ($rows as $row) {
             $keyboard[] = $row;
         }
         return json_encode(['inline_keyboard' => $keyboard]);
@@ -389,7 +395,7 @@ class TelegramBot
         return $this->sendRequest("exportChatInviteLink", $request_params);
     }
 
-    function setChatPhoto(array $input_file, string$chat_id = null): stdClass
+    function setChatPhoto(array $input_file, string $chat_id = null): stdClass
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
         if (empty($chat_id)) die("Chat ID required");
@@ -507,8 +513,10 @@ class TelegramBot
         return $this->sendRequest("deleteChatStickerSet", $request_params);
     }
 
-    function answerCallbackQuery(int $callback_query_id, array $params = []): stdClass
+    function answerCallbackQuery(array $params = [], int $callback_query_id = null): stdClass
     {
+        if (empty($callback_query_id)) $callback_query_id = $this->getCallbackQueryID($this->update);
+        if (empty($callback_query_id)) die("Callback query ID required");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -516,7 +524,7 @@ class TelegramBot
         return $this->sendRequest("answerCallbackQuery", $request_params);
     }
 
-    function editMessage(string $mode, bool $is_inline, int $message_id, string $chat_id = null, array$params = null): stdClass
+    function editMessage(string $mode, bool $is_inline, int $message_id, string $chat_id = null, array $params = null): stdClass
     {
         $available_modes = ["text", "caption", "replymarkup"];
         if (!in_array($mode, $available_modes)) die("Invalid mode specified");
@@ -619,7 +627,7 @@ class TelegramBot
     {
         $this->token = "bot" . str_replace("bot", "", $token);
         $this->provider = new settingsProvider($settings_path);
-        if(file_exists($settings_path)){
+        if (file_exists($settings_path)) {
             $this->settings = $this->provider->loadSettings();
         } else {
             $this->settings = $this->provider->createSettings();
@@ -646,20 +654,20 @@ class TelegramBot
         $second_types = ["text", "caption", "query", "data"];
         $first_field = null;
         $second_field = null;
-        foreach($first_types as $first_type){
-            if(!empty($update->$first_type)){
+        foreach ($first_types as $first_type) {
+            if (!empty($update->$first_type)) {
                 $first_field = $first_type;
                 break;
             }
         }
-        foreach($second_types as $second_type){
-            if(!empty($update->$first_field->$second_type)){
+        foreach ($second_types as $second_type) {
+            if (!empty($update->$first_field->$second_type)) {
                 $second_field = $second_type;
                 break;
             }
         }
         $command_text = $update->$first_field->$second_field;
-        foreach($this->hooks["$first_field::$second_field"][$command_text] as $action){
+        foreach ($this->hooks["$first_field::$second_field"][$command_text] as $action) {
             $action($this);
         }
         return;
@@ -667,18 +675,18 @@ class TelegramBot
 
     function start(): void
     {
-        if($this->use_polling){
+        if ($this->use_polling) {
             $offset = 0;
-            foreach($this->settings->general->admins as $admin) $this->sendMessage("Bot started correctly.", $admin);
-            while(true){
+            foreach ($this->settings->general->admins as $admin) $this->sendMessage("Bot started correctly.", $admin);
+            while (true) {
                 $response = $this->getUpdates(['offset' => $offset]);
-                foreach($response->result as $update){
+                foreach ($response->result as $update) {
                     $offset = $update->update_id;
-                    if($this->settings->maintenance->enabled and $update->message->chat->type == "private"){
+                    if ($this->settings->maintenance->enabled and $update->message->chat->type == "private") {
                         $this->sendMessage($this->settings->maintenance->message);
                         continue;
                     }
-                    if($update->message->text == "/halt"){
+                    if ($update->message->text == "/halt") {
                         $this->sendMessage("Shutting down...");
                         $offset++;
                         $this->getUpdates(['offset' => $offset,
