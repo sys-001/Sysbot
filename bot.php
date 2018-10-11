@@ -15,7 +15,7 @@ $Bot = new TelegramBot(TOKEN, SETTINGS_PATH);
 } else {
     $ip = $_SERVER['REMOTE_ADDR'];
 }
-$allowed_addresses = array();
+$allowed_addresses = [];
 for ($i = 197; $i <= 233; $i++) {
     $allowed_addresses[] = "149.154.167.$i";
 }
