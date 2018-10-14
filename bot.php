@@ -1,9 +1,11 @@
 <?php
 
-require_once "src/core.php";
+require_once "vendor/autoload.php";
 
-define("TOKEN", "123456:BOT_TOKEN_HERE");
+define("TOKEN", "123456:BOT_TOKEN");
 define("SETTINGS_PATH", "data/management/bot.settings");
+
+use TelegramBot\TelegramBot;
 
 $Bot = new TelegramBot(TOKEN, SETTINGS_PATH);
 

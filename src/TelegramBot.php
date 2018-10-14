@@ -1,50 +1,72 @@
 <?php
 
-/** @noinspection PhpIncludeInspection */
-require 'vendor/autoload.php';
-require_once "settingsProvider.php";
+namespace TelegramBot;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\{Client, Exception\ClientException, Exception\RequestException};
+use TelegramBot\Types\{Exception\SettingsProviderException,
+    Exception\TelegramBotException,
+    Telegram\Response,
+    Telegram\Update};
 
-class TelegramBotException Extends Exception
-{
-}
-
+/**
+ * Class TelegramBot
+ * @package TelegramBot
+ */
 class TelegramBot
 {
+    /**
+     *
+     */
     private const ENDPOINT = "https://api.telegram.org/";
+    /**
+     * @var null|string
+     */
     private $token = null;
+    /**
+     * @var Client|null
+     */
     private $client = null;
+    /**
+     * @var null|SettingsProvider
+     */
     private $provider = null;
+    /**
+     * @var null
+     */
     private $hooks = null;
+    /**
+     * @var null|Types\Settings\Settings
+     */
     private $settings = null;
+    /**
+     * @var mixed|null
+     */
     private $update = null;
+    /**
+     * @var bool
+     */
     private $use_polling = false;
 
     /**
      * TelegramBot constructor.
      * @param string $token
      * @param string $settings_path
-     * @throws TelegramBotException
      * @throws SettingsProviderException
+     * @throws TelegramBotException
      */
     function __construct(string $token, string $settings_path = "data/management/bot.settings")
     {
         $this->token = sprintf("bot%s", str_replace("bot", "", $token));
-        $this->provider = new settingsProvider($settings_path);
+        $this->provider = new SettingsProvider($settings_path);
         if (file_exists($settings_path)) {
-            $this->settings = $this->provider->loadSettings();
+            $this->settings = $this->provider->loadSettings()->getSettings();
         } else {
-            $this->settings = $this->provider->createSettings();
-            $this->provider->saveSettings($this->settings);
+            $this->settings = $this->provider->createSettings()->getSettings();
+            $this->provider->saveSettings();
         }
-        if ($this->settings->telegram->use_test_api) $this->token = $this->token . "/test";
-        $this->client = new Client([
-            'base_uri' => self::ENDPOINT . $this->token . '/',
-            'timeout' => 2.0
-        ]);
-        if (!$this->getMe()->ok) throw new TelegramBotException("Invalid token provided");
+        if ($this->settings->getTelegramSection()->getUseTestApi()) $this->token = sprintf("%s/test", $this->token);
+        $this->client = new Client(['base_uri' => sprintf("%s%s/", self::ENDPOINT, $this->token), 'timeout' => 5.0]);
+        if (null == $this->getMe()) throw new TelegramBotException("Invalid token provided.");
         $raw_update = file_get_contents("php://input");
         if (empty($this->getWebhookInfo()->result->url) and empty($raw_update)) {
             $this->use_polling = true;
@@ -54,9 +76,10 @@ class TelegramBot
     }
 
     /**
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function getMe(): stdClass
+    function getMe(): ?Response
     {
         return $this->sendRequest("getMe", []);
     }
@@ -64,29 +87,29 @@ class TelegramBot
     /**
      * @param string $method
      * @param array $params
-     * @return stdClass
+     * @return null|Response
+     * @throws TelegramBotException
      */
-    function sendRequest(string $method, array $params): stdClass
+    function sendRequest(string $method, array $params): ?Response
     {
         try {
-            $response = $this->client->post($method, [
-                'form_params' => $params,
-                'headers' => [
-                    'Connection' => 'Keep-Alive',
-                    'Keep-Alive' => '120',
-                ]
-            ]);
+            $response = $this->client->post($method, ['form_params' => $params, 'headers' => ['Connection' => 'Keep-Alive', 'Keep-Alive' => '120',]]);
         } catch (ClientException $e) {
-            return (object)["ok" => false];
+            return null;
+        } catch (RequestException $e) {
+            return null;
         }
-
-        return json_decode($response->getBody());
+        $result = json_decode($response->getBody());
+        if(!isset($result->error_code)) $result->error_code = null;
+        if(!isset($result->description)) $result->description = null;
+        return new Response($result->ok, (object)$result->result, $result->error_code, $result->description);
     }
 
     /**
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function getWebhookInfo(): stdClass
+    function getWebhookInfo(): Response
     {
         return $this->sendRequest("getWebhookInfo", []);
     }
@@ -100,29 +123,27 @@ class TelegramBot
     function setHook(string $update_type, string $command, callable $action): void
     {
         $available_types = ["message::text", "message::caption", "edited_message::text", "edited_message::caption", "channel_post::text", "channel_post::caption", "edited_channel_post::text", "edited_channel_post::caption", "inline_query::query", "chosen_inline_result::query", "callback_query::data"];
-        if (!in_array($update_type, $available_types)) throw new TelegramBotException("Invalid update type");
+        if (!in_array($update_type, $available_types)) throw new TelegramBotException("Invalid update type.");
         $this->hooks[$update_type][$command][] = $action;
         return;
     }
 
     /**
-     * @param stdClass $settings
-     * @throws SettingsProviderException
+     *
      */
-    function refreshSettings(stdClass $settings): void
+    function refreshSettings(): void
     {
-        $this->provider->validateSettings($settings);
-        $this->settings = $settings;
-        $this->provider->saveSettings($settings);
+        $this->settings = $this->provider->getSettings();
         return;
     }
 
     /**
      * @param string $url
      * @param array $params
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function setWebhook(string $url, array $params = []): stdClass
+    function setWebhook(string $url, array $params = []): Response
     {
         $request_params["url"] = $url;
         foreach ($params as $param => $value) {
@@ -136,9 +157,10 @@ class TelegramBot
     }
 
     /**
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function deleteWebhook(): stdClass
+    function deleteWebhook(): Response
     {
         return $this->sendRequest("deleteWebhook", []);
     }
@@ -151,10 +173,7 @@ class TelegramBot
      */
     function generateReplyKeyboardButton(string $text, bool $request_contact = false, bool $request_location = false): array
     {
-        return ["text" => $text,
-            "request_contact" => $request_contact,
-            "request_location" => $request_location
-        ];
+        return ["text" => $text, "request_contact" => $request_contact, "request_location" => $request_location];
     }
 
     /**
@@ -196,9 +215,7 @@ class TelegramBot
      */
     function generateReplyKeyboardRemove(bool $remove_keyboard = true, bool $selective = false): string
     {
-        return json_encode(["remove_keyboard" => $remove_keyboard,
-            "selective" => $selective
-        ]);
+        return json_encode(["remove_keyboard" => $remove_keyboard, "selective" => $selective]);
     }
 
     /**
@@ -208,9 +225,7 @@ class TelegramBot
      */
     function generateForceReply(bool $force_reply = true, bool $selective = false): string
     {
-        return json_encode(["force_reply" => $force_reply,
-            "selective" => $selective
-        ]);
+        return json_encode(["force_reply" => $force_reply, "selective" => $selective]);
     }
 
     /**
@@ -223,10 +238,8 @@ class TelegramBot
     function generateInlineKeyboardButton(string $text, string $callback_action, string $callback_content): array
     {
         $allowed_actions = ["url", "callback_data", "switch_inline_query", "switch_inline_query_current_chat", "callback_game", "pay"];
-        if (!in_array($callback_action, $allowed_actions)) throw new TelegramBotException("Invalid callback action provided");
-        return ["text" => $text,
-            $callback_action => $callback_content
-        ];
+        if (!in_array($callback_action, $allowed_actions)) throw new TelegramBotException("Invalid callback action provided.");
+        return ["text" => $text, $callback_action => $callback_content];
     }
 
     /**
@@ -260,15 +273,12 @@ class TelegramBot
      * @param string $from_chat_id
      * @param int $message_id
      * @param bool $disable_notification
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function forwardMessage(string $chat_id, string $from_chat_id, int $message_id, bool $disable_notification = false): stdClass
+    function forwardMessage(string $chat_id, string $from_chat_id, int $message_id, bool $disable_notification = false): Response
     {
-        return $this->sendRequest("forwardMessage", ["chat_id" => $chat_id,
-            "from_chat_id" => $from_chat_id,
-            "message_id" => $message_id,
-            "disable_notification" => $disable_notification
-        ]);
+        return $this->sendRequest("forwardMessage", ["chat_id" => $chat_id, "from_chat_id" => $from_chat_id, "message_id" => $message_id, "disable_notification" => $disable_notification]);
     }
 
     /**
@@ -281,45 +291,45 @@ class TelegramBot
     function generateFile(string $type, string $file, bool $is_local): array
     {
         $available_types = ["photo", "audio", "voice", "video", "video_note", "document", "sticker", "animation"];
-        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid file type provided");
-        return ["type" => $type,
-            "file" => $file,
-            "is_local" => $is_local];
+        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid file type provided.");
+        return ["type" => $type, "file" => $file, "is_local" => $is_local];
     }
 
     /**
      * @param array $input_file
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendFile(array $input_file, string $chat_id = null, array $params = []): stdClass
+    function sendFile(array $input_file, string $chat_id = null, array $params = []): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $available_types = ["photo", "audio", "voice", "video", "video_note", "document", "sticker", "animation"];
-        if (!in_array($input_file["type"], $available_types) or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input file provided");
+        if (!in_array($input_file["type"], $available_types) or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input file provided.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
         $request_params["chat_id"] = $chat_id;
-        if (empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->telegram->parse_mode;
+        if (empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->getTelegramSection()->getParseMode();
         if ($input_file["is_local"]) {
             $request_params[$input_file["type"]] = fopen($input_file["file"], 'r');
             if ($input_file["type"] == "video_note") $input_file["type"] = "videoNote";
-            return $this->sendRequest("send" . $input_file["type"], $request_params);
+            $request = sprintf("send%s", $input_file["type"]);
+            return $this->sendRequest($request, $request_params);
         }
         $request_params[$input_file["type"]] = $input_file["file"];
         if ($input_file["type"] == "video_note") $input_file["type"] = "videoNote";
-        return $this->sendRequest("send" . $input_file["type"], $request_params);
+        $request = sprintf("send%s", $input_file["type"]);
+        return $this->sendRequest($request, $request_params);
     }
 
     /**
-     * @param stdClass $update
+     * @param Update $update
      * @return int
      */
-    private function getChatID(stdClass $update): int
+    private function getChatID(Update $update): int
     {
         if (!empty($update->message->chat->id)) {
             return $update->message->chat->id;
@@ -340,11 +350,11 @@ class TelegramBot
     function generateMedia(string $type, string $media, bool $is_local, array $params = []): array
     {
         $available_types = ["photo", "video"];
-        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid media type provided");
+        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid media type provided.");
         foreach ($params as $param => $value) {
             $media_params[$param] = $value;
         }
-        if (empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->telegram->parse_mode;
+        if (empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->getTelegramSection()->getParseMode();
         $media_params["media"] = $is_local ? fopen($media, 'r') : $media;
         $media_params["type"] = $type;
         return $media_params;
@@ -354,15 +364,15 @@ class TelegramBot
      * @param array $media_files
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendMediaGroup(array $media_files, string $chat_id = null, array $params = []): stdClass
+    function sendMediaGroup(array $media_files, string $chat_id = null, array $params = []): Response
     {
         $available_types = ["photo", "video"];
-        if (!is_array($media_files)) throw new TelegramBotException("Invalid files provided");
+        if (!is_array($media_files)) throw new TelegramBotException("Invalid files provided.");
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         foreach ($media_files as $media_file) {
             if (!empty($media_file["media"]) and in_array($media_file["type"], $available_types)) $request_params["media"][] = $media_file;
         }
@@ -380,16 +390,16 @@ class TelegramBot
      * @param float $longitude
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendPosition(string $type, float $latitude, float $longitude, string $chat_id = null, array $params = []): stdClass
+    function sendPosition(string $type, float $latitude, float $longitude, string $chat_id = null, array $params = []): Response
     {
         $available_types = ["location", "venue"];
-        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid position type specified");
+        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid position type specified.");
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
-        if ($type == "venue" and (empty($params["title"]) or empty($params["address"]))) throw new TelegramBotException("Missing required parameters for Venue");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
+        if ($type == "venue" and (empty($params["title"]) or empty($params["address"]))) throw new TelegramBotException("Missing required parameters for Venue.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -406,16 +416,16 @@ class TelegramBot
      * @param int $message_id
      * @param string|null $chat_id
      * @param string|null $reply_markup
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function editMessageLiveLocation(float $latitude, float $longitude, bool $is_inline, int $message_id, string $chat_id = null, string $reply_markup = null): stdClass
+    function editMessageLiveLocation(float $latitude, float $longitude, bool $is_inline, int $message_id, string $chat_id = null, string $reply_markup = null): Response
     {
         if ($is_inline) {
             $request_params["inline_message_id"] = $message_id;
         } else {
             if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode");
+            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode.");
             $request_params["chat_id"] = $chat_id;
             $request_params["message_id"] = $message_id;
         }
@@ -430,16 +440,16 @@ class TelegramBot
      * @param string $message_id
      * @param string|null $chat_id
      * @param string|null $reply_markup
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function stopMessageLiveLocation(bool $is_inline, string $message_id, string $chat_id = null, string $reply_markup = null): stdClass
+    function stopMessageLiveLocation(bool $is_inline, string $message_id, string $chat_id = null, string $reply_markup = null): Response
     {
         if ($is_inline) {
             $request_params["inline_message_id"] = $message_id;
         } else {
             if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode");
+            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode.");
             $request_params["chat_id"] = $chat_id;
             $request_params["message_id"] = $message_id;
         }
@@ -452,16 +462,16 @@ class TelegramBot
      * @param string $first_name
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendContact(string $phone_number, string $first_name, string $chat_id = null, array $params = []): stdClass
+    function sendContact(string $phone_number, string $first_name, string $chat_id = null, array $params = []): Response
     {
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["phone_number"] = $phone_number;
         $request_params["first_name"] = $first_name;
@@ -471,15 +481,15 @@ class TelegramBot
     /**
      * @param string $action
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendChatAction(string $action, string $chat_id = null): stdClass
+    function sendChatAction(string $action, string $chat_id = null): Response
     {
         $available_actions = ["typing", "upload_photo", "record_video", "upload_video", "record_audio", "upload_audio", "upload_document", "find_location", "record_video_note", "upload_video_note"];
-        if (!in_array($action, $available_actions)) throw new TelegramBotException("Invalid action specified");
+        if (!in_array($action, $available_actions)) throw new TelegramBotException("Invalid action specified.");
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["action"] = $action;
         return $this->sendRequest("sendChatAction", $request_params);
@@ -488,9 +498,10 @@ class TelegramBot
     /**
      * @param int $user_id
      * @param array $params
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function getUserProfilePhotos(int $user_id, array $params = []): stdClass
+    function getUserProfilePhotos(int $user_id, array $params = []): Response
     {
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
@@ -501,9 +512,10 @@ class TelegramBot
 
     /**
      * @param string $file_id
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function getFile(string $file_id): stdClass
+    function getFile(string $file_id): Response
     {
         $request_params["file_id"] = $file_id;
         return $this->sendRequest("getFile", $request_params);
@@ -513,13 +525,13 @@ class TelegramBot
      * @param int $user_id
      * @param string|null $chat_id
      * @param int|null $until_date
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function kickChatMember(int $user_id, string $chat_id = null, int $until_date = null): stdClass
+    function kickChatMember(int $user_id, string $chat_id = null, int $until_date = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["user_id"] = $user_id;
         if (!empty($until_date)) $request_params["until_date"] = $until_date;
@@ -529,13 +541,13 @@ class TelegramBot
     /**
      * @param int $user_id
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function unbanChatMember(int $user_id, string $chat_id = null): stdClass
+    function unbanChatMember(int $user_id, string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["user_id"] = $user_id;
         return $this->sendRequest("unbanChatMember", $request_params);
@@ -545,13 +557,13 @@ class TelegramBot
      * @param int $user_id
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function restrictChatMember(int $user_id, string $chat_id = null, array $params = []): stdClass
+    function restrictChatMember(int $user_id, string $chat_id = null, array $params = []): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -564,13 +576,13 @@ class TelegramBot
      * @param int $user_id
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function promoteChatMember(int $user_id, string $chat_id = null, array $params = []): stdClass
+    function promoteChatMember(int $user_id, string $chat_id = null, array $params = []): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -581,13 +593,13 @@ class TelegramBot
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function exportChatInviteLink(string $chat_id = null): stdClass
+    function exportChatInviteLink(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("exportChatInviteLink", $request_params);
     }
@@ -595,15 +607,15 @@ class TelegramBot
     /**
      * @param array $input_file
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function setChatPhoto(array $input_file, string $chat_id = null): stdClass
+    function setChatPhoto(array $input_file, string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
-        if ($input_file["type"] != "photo" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo");
+        if ($input_file["type"] != "photo" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo.");
         if ($input_file["is_local"]) {
             $request_params["photo"] = fopen($input_file["file"], 'r');
             $response = $this->sendRequest("setChatPhoto", $request_params);
@@ -616,13 +628,13 @@ class TelegramBot
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function deleteChatPhoto(string $chat_id = null): stdClass
+    function deleteChatPhoto(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("deleteChatPhoto", $request_params);
     }
@@ -630,13 +642,13 @@ class TelegramBot
     /**
      * @param string $title
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function setChatTitle(string $title, string $chat_id = null): stdClass
+    function setChatTitle(string $title, string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["title"] = $title;
         return $this->sendRequest("setChatTitle", $request_params);
@@ -645,13 +657,13 @@ class TelegramBot
     /**
      * @param string|null $description
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function setChatDescription(string $description = null, string $chat_id = null): stdClass
+    function setChatDescription(string $description = null, string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         if (!empty($description)) $request_params["description"] = $description;
         return $this->sendRequest("setChatDescription", $request_params);
@@ -661,13 +673,13 @@ class TelegramBot
      * @param int $message_id
      * @param string|null $chat_id
      * @param bool|null $disable_notification
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function pinChatMessage(int $message_id, string $chat_id = null, bool $disable_notification = null): stdClass
+    function pinChatMessage(int $message_id, string $chat_id = null, bool $disable_notification = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["message_id"] = $message_id;
         if (!empty($disable_notification)) $request_params["disable_notification"] = $disable_notification;
@@ -676,36 +688,36 @@ class TelegramBot
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function unpinChatMessage(string $chat_id = null): stdClass
+    function unpinChatMessage(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("unpinChatMessage", $request_params);
     }
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function leaveChat(string $chat_id = null): stdClass
+    function leaveChat(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("leaveChat", $request_params);
     }
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function getChat(string $chat_id = null): stdClass
+    function getChat(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
         if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
@@ -715,26 +727,26 @@ class TelegramBot
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function getChatAdministrators(string $chat_id = null): stdClass
+    function getChatAdministrators(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("getChatAdministrators", $request_params);
     }
 
     /**
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function getChatMembersCount(string $chat_id = null): stdClass
+    function getChatMembersCount(string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("getChatMembersCount", $request_params);
     }
@@ -742,13 +754,13 @@ class TelegramBot
     /**
      * @param int $user_id
      * @param string|null $chat_id
-     * @return stdClass
+     * @return null|Response
      * @throws TelegramBotException
      */
     function getChatMember(int $user_id, string $chat_id = null)
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["user_id"] = $user_id;
         return $this->sendRequest("getChatMember", $request_params);
@@ -757,13 +769,13 @@ class TelegramBot
     /**
      * @param string $sticker_set_name
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function setChatStickerSet(string $sticker_set_name, string $chat_id = null): stdClass
+    function setChatStickerSet(string $sticker_set_name, string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["sticker_set_name"] = $sticker_set_name;
         return $this->sendRequest("setChatStickerSet", $request_params);
@@ -771,13 +783,13 @@ class TelegramBot
 
     /**
      * @param int|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function deleteChatStickerSet(int $chat_id = null): stdClass
+    function deleteChatStickerSet(int $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         return $this->sendRequest("deleteChatStickerSet", $request_params);
     }
@@ -785,13 +797,13 @@ class TelegramBot
     /**
      * @param array $params
      * @param int|null $callback_query_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function answerCallbackQuery(array $params = [], int $callback_query_id = null): stdClass
+    function answerCallbackQuery(array $params = [], int $callback_query_id = null): Response
     {
         if (empty($callback_query_id)) $callback_query_id = $this->getCallbackQueryID($this->update);
-        if (empty($callback_query_id)) throw new TelegramBotException("Callback query ID required");
+        if (empty($callback_query_id)) throw new TelegramBotException("Callback query ID required.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -800,10 +812,10 @@ class TelegramBot
     }
 
     /**
-     * @param stdClass $update
+     * @param Update $update
      * @return int
      */
-    private function getCallbackQueryID(stdClass $update): int
+    private function getCallbackQueryID(Update $update): int
     {
         if (!empty($update->callback_query->id)) return $update->callback_query->id;
         return null;
@@ -815,39 +827,40 @@ class TelegramBot
      * @param int $message_id
      * @param string|null $chat_id
      * @param array|null $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function editMessage(string $mode, bool $is_inline, int $message_id, string $chat_id = null, array $params = null): stdClass
+    function editMessage(string $mode, bool $is_inline, int $message_id, string $chat_id = null, array $params = null): Response
     {
         $available_modes = ["text", "caption", "replymarkup"];
-        if (!in_array($mode, $available_modes)) throw new TelegramBotException("Invalid mode specified");
+        if (!in_array($mode, $available_modes)) throw new TelegramBotException("Invalid mode specified.");
         if ($is_inline) {
             $request_params["inline_message_id"] = $message_id;
         } else {
             if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode");
+            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode.");
             $request_params["chat_id"] = $chat_id;
             $request_params["message_id"] = $message_id;
         }
-        if ($mode != "replymarkup" and empty($params["text"])) throw new TelegramBotException("Text required in non-replymarkup mode");
+        if ($mode != "replymarkup" and empty($params["text"])) throw new TelegramBotException("Text required in non-replymarkup mode.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
-        if ($mode != "replymarkup" and empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->telegram->parse_mode;
-        return $this->sendRequest("editMessage" . $mode, $request_params);
+        if ($mode != "replymarkup" and empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->getTelegramSection()->getParseMode();
+        $request = sprintf("editMessage%s", $mode);
+        return $this->sendRequest($request, $request_params);
     }
 
     /**
      * @param int $message_id
      * @param int|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function deleteMessage(int $message_id, int $chat_id = null): stdClass
+    function deleteMessage(int $message_id, int $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         $request_params["chat_id"] = $chat_id;
         $request_params["message_id"] = $message_id;
         return $this->sendRequest("deleteMessage", $request_params);
@@ -855,9 +868,10 @@ class TelegramBot
 
     /**
      * @param string $name
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function getStickerSet(string $name): stdClass
+    function getStickerSet(string $name): Response
     {
         $request_params["name"] = $name;
         return $this->sendRequest("getStickerSet", $request_params);
@@ -866,13 +880,13 @@ class TelegramBot
     /**
      * @param int $user_id
      * @param array $input_file
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function uploadStickerFile(int $user_id, array $input_file): stdClass
+    function uploadStickerFile(int $user_id, array $input_file): Response
     {
         $request_params["user_id"] = $user_id;
-        if ($input_file["type"] != "sticker" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo");
+        if ($input_file["type"] != "sticker" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo.");
         if ($input_file["is_local"]) {
             $request_params["png_sticker"] = fopen($input_file["file"], 'r');
             $response = $this->sendRequest("uploadStickerFile", $request_params);
@@ -889,16 +903,16 @@ class TelegramBot
      * @param array $input_file
      * @param string $emojis
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function createNewStickerSet(int $user_id, string $name, string $title, array $input_file, string $emojis, array $params = []): stdClass
+    function createNewStickerSet(int $user_id, string $name, string $title, array $input_file, string $emojis, array $params = []): Response
     {
         $request_params["user_id"] = $user_id;
         $request_params["name"] = $name;
         $request_params["title"] = $title;
         $request_params["emojis"] = $emojis;
-        if ($input_file["type"] != "sticker" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo");
+        if ($input_file["type"] != "sticker" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -917,15 +931,15 @@ class TelegramBot
      * @param array $input_file
      * @param string $emojis
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function addStickerToSet(int $user_id, string $name, array $input_file, string $emojis, array $params = []): stdClass
+    function addStickerToSet(int $user_id, string $name, array $input_file, string $emojis, array $params = []): Response
     {
         $request_params["user_id"] = $user_id;
         $request_params["name"] = $name;
         $request_params["emojis"] = $emojis;
-        if ($input_file["type"] != "sticker" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo");
+        if ($input_file["type"] != "sticker" or empty($input_file["file"] or empty($input_file["is_local"]))) throw new TelegramBotException("Invalid input photo.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -941,9 +955,10 @@ class TelegramBot
     /**
      * @param string $sticker
      * @param int $position
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function setStickerPositionInSet(string $sticker, int $position): stdClass
+    function setStickerPositionInSet(string $sticker, int $position): Response
     {
         $request_params["sticker"] = $sticker;
         $request_params["position"] = $position;
@@ -952,9 +967,10 @@ class TelegramBot
 
     /**
      * @param string $sticker
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function deleteStickerFromSet(string $sticker): stdClass
+    function deleteStickerFromSet(string $sticker): Response
     {
         $request_params["sticker"] = $sticker;
         return $this->sendRequest("deleteStickerFromSet", $request_params);
@@ -971,7 +987,7 @@ class TelegramBot
     function generateInlineQueryResult(string $type, int $id, string $title, array $params): array
     {
         $available_types = ["article", "photo", "gif", "mpeg4_gif", "video", "audio", "voice", "document", "location", "venue", "contact", "game", "sticker"];
-        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid InlineQueryResult type");
+        if (!in_array($type, $available_types)) throw new TelegramBotException("Invalid InlineQueryResult type.");
         $result["type"] = $type;
         $result["id"] = $id;
         $result["title"] = $title;
@@ -985,13 +1001,13 @@ class TelegramBot
      * @param array $results
      * @param array $params
      * @param int|null $inline_query_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function answerInlineQuery(array $results, array $params = [], int $inline_query_id = null): stdClass
+    function answerInlineQuery(array $results, array $params = [], int $inline_query_id = null): Response
     {
         if (empty($inline_query_id)) $inline_query_id = $this->getInlineQueryID($this->update);
-        if (empty($inline_query_id)) throw new TelegramBotException("Inline Query ID required");
+        if (empty($inline_query_id)) throw new TelegramBotException("Inline Query ID required.");
         $request_params["inline_query_id"] = $inline_query_id;
         $request_params["results"] = json_encode($results);
         foreach ($params as $param => $value) {
@@ -1001,10 +1017,10 @@ class TelegramBot
     }
 
     /**
-     * @param stdClass $update
+     * @param Update $update
      * @return int
      */
-    private function getInlineQueryID(stdClass $update): int
+    private function getInlineQueryID(Update $update): int
     {
         if (!empty($update->inline_query->id)) return $update->inline_query->id;
         return null;
@@ -1020,22 +1036,14 @@ class TelegramBot
      * @param array $prices
      * @param array $params
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendInvoice(string $title, string $description, string $payload, string $provider_token, string $start_parameter, string $currency, array $prices, array $params = [], string $chat_id = null): stdClass
+    function sendInvoice(string $title, string $description, string $payload, string $provider_token, string $start_parameter, string $currency, array $prices, array $params = [], string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
-        $request_params = [
-            "title" => $title,
-            "description" => $description,
-            "payload" => $payload,
-            "provider_token" => $provider_token,
-            "start_parameter" => $start_parameter,
-            "currency" => $currency,
-            "prices" => $prices
-        ];
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
+        $request_params = ["title" => $title, "description" => $description, "payload" => $payload, "provider_token" => $provider_token, "start_parameter" => $start_parameter, "currency" => $currency, "prices" => $prices];
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -1046,30 +1054,30 @@ class TelegramBot
      * @param bool $ok
      * @param array $params
      * @param int|null $shipping_query_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function answerShippingQuery(bool $ok, array $params = [], int $shipping_query_id = null): stdClass
+    function answerShippingQuery(bool $ok, array $params = [], int $shipping_query_id = null): Response
     {
         if (empty($shipping_query_id)) $shipping_query_id = $this->getShippingQueryID($this->update);
-        if (empty($shipping_query_id)) throw new TelegramBotException("Shipping Query ID required");
+        if (empty($shipping_query_id)) throw new TelegramBotException("Shipping Query ID required.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
         $request_params["ok"] = $ok;
         if ($ok) {
-            if (empty($request_params["shipping_options"])) throw new TelegramBotException("Shipping Options field required");
+            if (empty($request_params["shipping_options"])) throw new TelegramBotException("Shipping Options field required.");
             return $this->sendRequest("answerShippingQuery", $request_params);
         }
-        if (empty($request_params["error_message"])) throw new TelegramBotException("Error message field required");
+        if (empty($request_params["error_message"])) throw new TelegramBotException("Error message field required.");
         return $this->sendRequest("answerShippingQuery", $request_params);
     }
 
     /**
-     * @param stdClass $update
+     * @param Update $update
      * @return int
      */
-    private function getShippingQueryID(stdClass $update): int
+    private function getShippingQueryID(Update $update): int
     {
         if (!empty($update->shipping_query->id)) return $update->shipping_query->id;
         return null;
@@ -1079,29 +1087,26 @@ class TelegramBot
      * @param bool $ok
      * @param string|null $error_message
      * @param int|null $pre_checkout_query_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function answerPreCheckoutQuery(bool $ok, string $error_message = null, int $pre_checkout_query_id = null): stdClass
+    function answerPreCheckoutQuery(bool $ok, string $error_message = null, int $pre_checkout_query_id = null): Response
     {
         if (empty($pre_checkout_query_id)) $pre_checkout_query_id = $this->getPreCheckoutQueryID($this->update);
-        if (empty($pre_checkout_query_id)) throw new TelegramBotException("Pre-checkout Query ID required");
-        $request_params = [
-            "pre_checkout_query_id" => $pre_checkout_query_id,
-            "ok" => $ok
-        ];
+        if (empty($pre_checkout_query_id)) throw new TelegramBotException("Pre-checkout Query ID required.");
+        $request_params = ["pre_checkout_query_id" => $pre_checkout_query_id, "ok" => $ok];
         if (!$ok) {
-            if (empty($error_message)) throw new TelegramBotException("Error Message field required");
+            if (empty($error_message)) throw new TelegramBotException("Error Message field required.");
             $request_params["error_message"] = $error_message;
         }
         return $this->sendRequest("answerPreCheckoutQuery", $request_params);
     }
 
     /**
-     * @param stdClass $update
+     * @param Update $update
      * @return int
      */
-    private function getPreCheckoutQueryID(stdClass $update): int
+    private function getPreCheckoutQueryID(Update $update): int
     {
         if (!empty($update->pre_checkout_query->id)) return $update->pre_checkout_query->id;
         return null;
@@ -1110,27 +1115,27 @@ class TelegramBot
     /**
      * @param int $user_id
      * @param array $errors
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function setPassportDataErrors(int $user_id, array $errors): stdClass
+    function setPassportDataErrors(int $user_id, array $errors): Response
     {
         $request_params["user_id"] = $user_id;
         $request_params["errors"] = $errors;
         return $this->sendRequest("setPassportDataErrors", $request_params);
     }
 
-
     /**
      * @param string $game_short_name
      * @param array $params
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendGame(string $game_short_name, array $params = [], string $chat_id = null): stdClass
+    function sendGame(string $game_short_name, array $params = [], string $chat_id = null): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
@@ -1146,16 +1151,16 @@ class TelegramBot
      * @param int $message_id
      * @param array $params
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function setGameScore(int $user_id, int $score, bool $is_inline, int $message_id, array $params = [], string $chat_id = null): stdClass
+    function setGameScore(int $user_id, int $score, bool $is_inline, int $message_id, array $params = [], string $chat_id = null): Response
     {
         if ($is_inline) {
             $request_params["inline_message_id"] = $message_id;
         } else {
             if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode");
+            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode.");
             $request_params["chat_id"] = $chat_id;
             $request_params["message_id"] = $message_id;
         }
@@ -1172,16 +1177,16 @@ class TelegramBot
      * @param bool $is_inline
      * @param int $message_id
      * @param string|null $chat_id
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function getGameHighScores(int $user_id, bool $is_inline, int $message_id, string $chat_id = null): stdClass
+    function getGameHighScores(int $user_id, bool $is_inline, int $message_id, string $chat_id = null): Response
     {
         if ($is_inline) {
             $request_params["inline_message_id"] = $message_id;
         } else {
             if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode");
+            if (empty($chat_id)) throw new TelegramBotException("Chat ID required in non-inline mode.");
             $request_params["chat_id"] = $chat_id;
             $request_params["message_id"] = $message_id;
         }
@@ -1196,22 +1201,20 @@ class TelegramBot
     {
         if ($this->use_polling) {
             $offset = 0;
-            foreach ($this->settings->general->admins as $admin) $this->sendMessage("Bot started correctly.", $admin);
+            foreach ($this->settings->getGeneralSection()->getAdminHandler()->getAdmins() as $admin) $this->sendMessage("Bot started correctly.", $admin);
             while (true) {
                 $response = $this->getUpdates(['offset' => $offset]);
                 if (null == $response->result) continue;
                 foreach ($response->result as $update) {
                     $offset = $update->update_id;
-                    if ($this->settings->maintenance->enabled and $update->message->chat->type == "private") {
-                        $this->sendMessage($this->settings->maintenance->message);
+                    if ($this->settings->getMaintenanceSection()->isEnabled() and $update->message->chat->type == "private") {
+                        $this->sendMessage($this->settings->getMaintenanceSection()->getMessage());
                         continue;
                     }
                     if ($update->message->text == "/halt") {
                         $this->sendMessage("Shutting down...");
                         $offset++;
-                        $this->getUpdates(['offset' => $offset,
-                            'limit' => 1
-                        ]);
+                        $this->getUpdates(['offset' => $offset, 'limit' => 1]);
                         exit;
                     }
                     $this->processUpdate($update);
@@ -1228,17 +1231,17 @@ class TelegramBot
      * @param string $text
      * @param string|null $chat_id
      * @param array $params
-     * @return stdClass
+     * @return Response
      * @throws TelegramBotException
      */
-    function sendMessage(string $text, string $chat_id = null, array $params = []): stdClass
+    function sendMessage(string $text, string $chat_id = null, array $params = []): Response
     {
         if (empty($chat_id)) $chat_id = $this->getChatID($this->update);
-        if (empty($chat_id)) throw new TelegramBotException("Chat ID required");
+        if (empty($chat_id)) throw new TelegramBotException("Chat ID required.");
         foreach ($params as $param => $value) {
             $request_params[$param] = $value;
         }
-        if (empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->telegram->parse_mode;
+        if (empty($request_params["parse_mode"])) $request_params["parse_mode"] = $this->settings->getTelegramSection()->getParseMode();
         $request_params["chat_id"] = $chat_id;
         $request_params["text"] = $text;
         return $this->sendRequest("sendMessage", $request_params);
@@ -1246,9 +1249,10 @@ class TelegramBot
 
     /**
      * @param array $params
-     * @return stdClass
+     * @return Response
+     * @throws TelegramBotException
      */
-    function getUpdates(array $params = []): stdClass
+    function getUpdates(array $params = []): Response
     {
         $request_params = [];
         foreach ($params as $param => $value) {
@@ -1258,10 +1262,11 @@ class TelegramBot
     }
 
     /**
-     * @param stdClass $update
+     * @param Update $update
      */
-    private function processUpdate(stdClass $update): void
+    private function processUpdate(\stdClass $update): void
     {
+        $update = new Update($update);
         $this->update = $update;
         $first_types = ["message", "edited_message", "channel_post", "edited_channel_post", "inline_query", "chosen_inline_result", "callback_query"];
         $second_types = ["text", "caption", "query", "data"];
