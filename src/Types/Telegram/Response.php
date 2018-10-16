@@ -37,6 +37,7 @@ class Response
      */
     public function __construct(bool $ok, $result = null, int $error_code = null, string $description = null)
     {
+        if (is_array($result)) $result = (object)$result;
         if ($ok) {
             if (empty($result)) throw new TelegramBotException("Invalid Response parameters provided.");
             $this->result = $result;

@@ -20,14 +20,41 @@ class GeneralSection implements SectionInterface
     private $administration_password;
 
     /**
+     * @var bool
+     */
+    private $check_ip;
+
+    /**
      * GeneralSection constructor.
      * @param AdminHandler $admin_handler
      * @param string $administration_password
+     * @param bool $check_ip
      */
-    public function __construct(AdminHandler $admin_handler, string $administration_password)
+    public function __construct(AdminHandler $admin_handler, string $administration_password, bool $check_ip)
     {
+        $hash_info = password_get_info($administration_password);
+        if (1 != $hash_info['algo']) $administration_password = password_hash($administration_password, PASSWORD_DEFAULT);
         $this->admin_handler = $admin_handler;
         $this->administration_password = $administration_password;
+        $this->check_ip = $check_ip;
+    }
+
+    /**
+     * @return bool
+     */
+    public function getCheckIp(): bool
+    {
+        return $this->check_ip;
+    }
+
+    /**
+     * @param bool $check_ip
+     * @return GeneralSection
+     */
+    public function setCheckIp(bool $check_ip): GeneralSection
+    {
+        $this->check_ip = $check_ip;
+        return $this;
     }
 
     /**
@@ -62,6 +89,8 @@ class GeneralSection implements SectionInterface
      */
     public function setAdministrationPassword(string $administration_password): self
     {
+        $hash_info = password_get_info($administration_password);
+        if (1 != $hash_info['algo']) $administration_password = password_hash($administration_password, PASSWORD_DEFAULT);
         $this->administration_password = $administration_password;
         return $this;
     }
