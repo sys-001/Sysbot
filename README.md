@@ -4,13 +4,13 @@
   <img src="logo.png" title="Sysbot-Logo" width="50%">
 </p>
 
-**NOTE: Documentation is incomplete: I'll update it as soon as possible.**
+**NOTE: This version is deprecated and will not be supported anymore. I suggest you to switch to master branch's version.**
 
 Sysbot is a simple Telegram Bot Framework. It's written in PHP and it's ready-to-use.
 
 ### Installation
 
-Just put all repo files on a free host with PHP5 (or later) support and SSL enabled.
+Just put all repo files on a free host with PHP5 (or later) support and SSL enabled (needed only if you plan to use a webhook).
 
 ### Instantiation
 
@@ -24,18 +24,7 @@ You can edit current bot settings by editing *DATA/management/settings.json* fil
 - `"send_actions"` -> Bot will send actions like "typing", "sending file", etc. Can be `true` or `false`;
 - `"in_maintenance"` -> When in maintenance mode, bot will reply a custom written message and will ignore all commands. Can be `true` or `false`;
 - `"maintenance_msg"` -> Message sent by bot in maintenance mode;
-- `"password"` -> SHA512 hashed password used to upgrade the framework;
 - `"test_mode"` -> When in test mode, Sysbot will use Telegram Test Bot API (A.K.A. Deep Telegram Bot API); please note that you must create a bot with Deep Telegram's BotFather, and use its token, otherwise you will get a 401 Unauthorized Error. Can be `true` or `false`. P.S.: You can signup to Telegram Test even from [Telegram Web](https://web.telegram.org/?test=1).
-
-Sub-settings for getUpdates:
-- `"enabled"` -> Bot will use getUpdates with specified token. Can be `true` or `false`;
-- `"token"` -> Encrypted token used by bot in getUpdates mode.
-
-Sub-settings for Anti-flood:
-- `"seconds"` -> Number of seconds needed to trigger the Anti-flood;
-- `"messages_number"` -> Number of message needed to trigger the Anti-flood;
-- `"ban_minutes"` -> Ban duration;
-- `"ban_message"` -> Message sent to user while banned.
 
 Note: If you are lazy/noob, you can delete *DATA/management/settings.json* file: opening *bot.php* through your browser, you will be able to re-run setup.
 
@@ -57,19 +46,15 @@ For simple commands, you can also use one-line version:
 
 ### Available types and methods
 
-Read [documentation](https://sys-001.github.io/Sysbot) to see all available types, and some other methods. (You can send files, forward messages, etc., so why don't you take a look?)
-
-### Usage stats
-
-You can get users and groups where bot is used using `getUsers` and `getGroups` methods; I've written a sample command - available to [bot administrators](#bot-administration) only - which shows you all users and groups number.
+Read [documentation](#documentation) to see all available types, and some other methods. (You can send files, forward messages, etc., so why don't you take a look?)
 
 ### Bot Administration
 
-Do you want to create a command which can be used only by a few people? Well, you can do this: just check if `$isAdmin` is true when you catch an update.
+Do you want to create a command which can be used only by a few people? Well, you can do this: just check if `$is_admin` is true when you catch an update.
 
 >Example:
 >```php
->if($update->message->text == "/whoami" and $isAdmin) {
+>if($update->message->text == "/whoami" and $is_admin) {
 >sendMessage("root");
 >}
 >```
@@ -78,15 +63,17 @@ If you want to add an user as an administrator, simply add his Telegram User ID 
 
 >Example:
 >```json
->"admins": [
->"123456789",
->"234567890"
->],
+>{
+>  "admins": [
+>    "123456789",
+>    "234567890"
+>  ]
+>}
 >```
 
 If you don't want to add it manually, you can add this code to *commands.php* file:
 >```php
->if(strpos($update->message->text, "/admin ") === 0 and $isAdmin){
+>if(strpos($update->message->text, "/admin ") === 0 and $is_admin){
 >$target = str_replace("/admin ", "", $update->message->text);
 >$admins = $settings->admins; //don't edit directly settings
 >$admins[] = $target;
@@ -95,26 +82,11 @@ If you don't want to add it manually, you can add this code to *commands.php* fi
 >sendMessage("UserID $target added to admins list.");
 >}
 >```
-
-### Addons
-
-The *ADDONS* folder contains two plugins:
-- *post.php*, which allows you to send broadcast messages to each user and group;
-- *antiflood.php*, which temporarily blocks an user from using the bot.
  
-### Web access
-
-I've also written a small function to see some informations directly from a browser:
->`https://yourhost.com/sysbot/bot.php?info=true`
-
-You can also upgrade the framework through it.
-
 ### Documentation
 
-(Needs to be updated) Take a look [here](https://sys-001.github.io/Sysbot).
+Take a look [here](https://sysbot.readthedocs.io/en/latest/).
 
 ### Issues
 
-If are experiencing an issue, contact me on [Telegram](https://telegram.me/sys002), or send me an [email](mailto:sys-001@etlgr.com).
-
-Anyway, read the documentation first. :D
+I won't take care of this version anymore, don't pm me. :D
