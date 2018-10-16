@@ -39,9 +39,3 @@ List of available methods:
 - [restrictMember($chat_id, $user_id, $can_send_messages, $can_send_media, $can_send_other, $can_send_web_previews, $restrict_seconds);](restrictMember.md)
 
 - [promoteMember($chat_id, $user_id, $can_change_info, $can_delete_messages, $can_invite_users, $can_restrict_members, $can_promote_members);](promoteMember.md)
-
-***
-
-- [getUsers();](getUsers.md)
-
-- [getGroups();](getGroups.md)
