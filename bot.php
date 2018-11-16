@@ -1,52 +1,68 @@
 <?php /** @noinspection PhpUnhandledExceptionInspection */
 
-require_once "vendor/autoload.php";
+require_once 'vendor/autoload.php';
 
-define("TOKEN", "123456:BOT_TOKEN");
-define("SETTINGS_PATH", "config/settings.json");
-define("LOG_VERBOSITY", 1);
+/**
+ * Bot token
+ */
+define('TOKEN', '123456:BOT_TOKEN');
+/**
+ * Settings path, can be relative or absolute
+ */
+define('SETTINGS_PATH', 'config/settings.json');
+/**
+ * Log verbosity:
+ * 0 - Only Errors
+ * 1 - Errors and SettingsProvider operations
+ * 2 - Errors, SettingsProvider and TelegramBot operations (updates and requests included)
+ */
+define('LOG_VERBOSITY', 1);
 
-use TelegramBot\TelegramBot;
+use TelegramBot\{Event, Telegram\Types\InputFile, TelegramBot, Util\KeyboardUtil};
 
 $bot = new TelegramBot(TOKEN, SETTINGS_PATH, LOG_VERBOSITY);
 $settings_provider = $bot->getProvider();
 
-$bot->setHook("message::text", "/start", function (TelegramBot $bot) {
-    $bot->sendMessage("Hi!");
+$bot->createSimpleEvent(['message', 'text'], '/start', function (TelegramBot $bot) {
+    $bot->sendMessage('Hi!');
+    $photo = new InputFile('logo.png', true);
+    $bot->sendPhoto($photo);
 });
 
-$bot->setHook("message::text", "/r_kb", function (TelegramBot $bot) {
-    $keyboard[] = $bot->generateReplyKeyboardRow([
-        $bot->generateReplyKeyboardButton("Contact button", true),
-        $bot->generateReplyKeyboardButton("Location button", false, true)
+$bot->createSimpleEvent(['message', 'text'], '/r_kb', function (TelegramBot $bot) {
+    $keyboard[] = KeyboardUtil::generateReplyKeyboardRow([
+        KeyboardUtil::generateReplyKeyboardButton('Contact button', true),
+        KeyboardUtil::generateReplyKeyboardButton('Location button', false, true)
     ]);
-    $keyboard[] = $bot->generateReplyKeyboardRow([$bot->generateReplyKeyboardButton("Normal button")]);
-    $bot->sendMessage("Hi with reply keyboard!", null, ["reply_markup" => $bot->generateReplyKeyboard($keyboard)]);
+    $keyboard[] = KeyboardUtil::generateReplyKeyboardRow([KeyboardUtil::generateReplyKeyboardButton('Normal button')]);
+    $bot->sendMessage('Hi with reply keyboard!', null, ['reply_markup' => KeyboardUtil::generateReplyKeyboard($keyboard)]);
 });
 
-$bot->setHook("message::text", "/r_clear", function (TelegramBot $bot) {
-    $bot->sendMessage("Hi with reply keyboard removed!", null, ["reply_markup" => $bot->generateReplyKeyboardRemove()]);
+$trigger = new Event\Trigger('/r_clear', true, false);
+$event = new Event\MessageTextEvent($trigger, function (TelegramBot $bot) {
+    $bot->sendMessage('Hi with reply keyboard removed!', null, ['reply_markup' => KeyboardUtil::generateReplyKeyboardRemove()]);
+});
+$bot->addEvent($event);
+
+$bot->createSimpleEvent(['message', 'text'], '/r_force', function (TelegramBot $bot) {
+    $bot->sendMessage('Hi with force reply!', null, ['reply_markup' => KeyboardUtil::generateForceReply()]);
 });
 
-$bot->setHook("message::text", "/r_force", function (TelegramBot $bot) {
-    $bot->sendMessage("Hi with force reply!", null, ["reply_markup" => $bot->generateForceReply()]);
-});
-
-$bot->setHook("message::text", "/i_kb", function (TelegramBot $bot) {
-    $keyboard[] = $bot->generateInlineKeyboardRow([
-        $bot->generateInlineKeyboardButton("Callback button", "callback_data", "callback_button"),
-        $bot->generateInlineKeyboardButton("URL button", "url", "https://t.me/sys001")
+$bot->createSimpleEvent(['message', 'text'], '/i_kb', function (TelegramBot $bot) {
+    $keyboard[] = KeyboardUtil::generateInlineKeyboardRow([
+        KeyboardUtil::generateInlineKeyboardButton('Callback button', 'callback_data', 'callback_button'),
+        KeyboardUtil::generateInlineKeyboardButton('URL button', 'url', 'https://t.me/sys001')
     ]);
-    $keyboard[] = $bot->generateInlineKeyboardRow([$bot->generateInlineKeyboardButton("Another callback button", "callback_data", "another_callback_button")]);
-    $bot->sendMessage("Hi with inline keyboard!", null, ["reply_markup" => $bot->generateInlineKeyboard($keyboard)]);
+    $keyboard[] = KeyboardUtil::generateInlineKeyboardRow([KeyboardUtil::generateInlineKeyboardButton('Another callback button', 'callback_data', 'another_callback_button')]);
+    $bot->sendMessage('Hi with inline keyboard!', null, ['reply_markup' => KeyboardUtil::generateInlineKeyboard($keyboard)]);
 });
 
-$bot->setHook("callback_query::data", "callback_button", function (TelegramBot $bot) {
-    $bot->answerCallbackQuery(["text" => "Hi from toast!"]);
+$bot->createSimpleEvent(['callback_query', 'data'], 'callback_button', function (TelegramBot $bot) {
+    $bot->answerCallbackQuery(['text' => 'Hi from toast!']);
 });
 
-$bot->setHook("callback_query::data", "another_callback_button", function (TelegramBot $bot) {
-    $bot->answerCallbackQuery(["text" => "Hi from alert!", "show_alert" => true]);
+$bot->createSimpleEvent(['callback_query', 'data'], 'another_callback_button', function (TelegramBot $bot) {
+    $bot->answerCallbackQuery(['text' => 'Hi from alert!', 'show_alert' => true]);
 });
 
 $bot->start();

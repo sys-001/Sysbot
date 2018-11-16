@@ -1,5 +1,5 @@
 {
-  "name": "sys-001/Sysbot",
+  "name": "sys-001/sysbot",
   "description": "A simple Telegram Bot Framework, written in PHP.",
   "type": "project",
   "require": {

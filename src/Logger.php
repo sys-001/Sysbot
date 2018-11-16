@@ -35,17 +35,23 @@ class Logger
      */
     function __construct(int $verbosity = 0, string $file_path = null)
     {
-        if (!in_array($verbosity, $this->verbosity_levels)) $verbosity = 0;
+        if (!in_array($verbosity, $this->verbosity_levels)) {
+            $verbosity = 0;
+        }
         $this->verbosity = $verbosity;
         $start = sprintf("[%s] Logger: Logger started.%s", date("d/m/y - H:i:s e"), PHP_EOL);
-        if (empty($file_path) and php_sapi_name() == "cli") {
+        if (empty($file_path) and php_sapi_name() === "cli") {
             $this->is_cli = true;
             echo $start;
             printf("[%s] Logger: Logger mode set to 'echo'.%s", date("d/m/y - H:i:s e"), PHP_EOL);
         } else {
-            if (empty($file_path)) $file_path = "Sysbot.log";
+            if (empty($file_path)) {
+                $file_path = "Sysbot.log";
+            }
             $log_file = fopen($file_path, "w");
-            if (false == $log_file) throw new \Exception("Could not create log file");
+            if (false === $log_file) {
+                throw new \Exception("Could not create log file");
+            }
             fwrite($log_file, $start);
             $start = sprintf("[%s] Logger: Logger mode set to 'file'.%s", date("d/m/y - H:i:s e"), PHP_EOL);
             fwrite($log_file, $start);
