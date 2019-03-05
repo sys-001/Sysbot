@@ -5,7 +5,7 @@
   "require": {
     "doctrine/orm": "^2.6.2",
     "ext-json": "*",
-    "ext-redis": "^3.2",
+    "ext-redis": "^4.2",
     "guzzlehttp/guzzle": "~6.0",
     "php": "^7.2"
   },
