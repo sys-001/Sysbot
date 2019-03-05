@@ -1,6 +1,6 @@
 <?php /** @noinspection PhpUnhandledExceptionInspection */
 
-require_once 'vendor/autoload.php';
+require_once __DIR__ . '/bootstrap.php';
 
 /**
  * Bot token
@@ -20,7 +20,7 @@ define('LOG_VERBOSITY', 1);
 
 use TelegramBot\{Event, Telegram\Types\InputFile, TelegramBot, Util\KeyboardUtil};
 
-$bot = new TelegramBot(TOKEN, SETTINGS_PATH, LOG_VERBOSITY);
+$bot = new TelegramBot(TOKEN, $entity_manager, SETTINGS_PATH, LOG_VERBOSITY);
 $settings_provider = $bot->getProvider();
 
 $bot->createSimpleEvent(['message', 'text'], '/start', function (TelegramBot $bot) {

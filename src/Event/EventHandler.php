@@ -70,6 +70,11 @@ class EventHandler
             /* @var DefaultEvent $event */
             $event_regex = $event->getTrigger()->getRegex();
             if (1 === preg_match($event_regex, $update_event)) {
+                if ($event->admins_only) {
+                    $user_id = $update->{$update_path[0]}->from->id ?? 0;
+                    $is_admin = $bot->getProvider()->getSettings()->getGeneralSection()->getAdminHandler()->isAdmin($user_id);
+                    if (!$is_admin) continue;
+                }
                 $event_callback = $event->getCallback();
                 $result = $event_callback($bot);
                 $results[$event_uuid] = $result;

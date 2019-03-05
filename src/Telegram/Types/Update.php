@@ -11,6 +11,11 @@ namespace TelegramBot\Telegram\Types;
 class Update
 {
 
+
+    /**
+     * @var
+     */
+    public $type;
     /**
      * @var
      */
@@ -70,7 +75,36 @@ class Update
             ->setChosenInlineResult(ChosenInlineResult::parseChosenInlineResult($update->chosen_inline_result ?? null))
             ->setCallbackQuery(CallbackQuery::parseCallbackQuery($update->callback_query ?? null))
             ->setShippingQuery(ShippingQuery::parseShippingQuery($update->shipping_query ?? null))
-            ->setPreCheckoutQuery(PreCheckoutQuery::parsePreCheckoutQuery($update->pre_checkout_query ?? null));
+            ->setPreCheckoutQuery(PreCheckoutQuery::parsePreCheckoutQuery($update->pre_checkout_query ?? null))
+            ->parseUpdateType($update);
+    }
+
+    /**
+     * @param \stdClass|null $update
+     * @return Update
+     */
+    private function parseUpdateType(?\stdClass $update): self
+    {
+        if (false === empty($update->message)) {
+            $this->type = "message";
+        } elseif (false === empty($update->edited_message)) {
+            $this->type = "edited_message";
+        } elseif (false === empty($update->channel_post)) {
+            $this->type = "channel_post";
+        } elseif (false === empty($update->edited_channel_post)) {
+            $this->type = "edited_channel_post";
+        } elseif (false === empty($update->inline_query)) {
+            $this->type = "inline_query";
+        } elseif (false === empty($update->chosen_inline_result)) {
+            $this->type = "chosen_inline_result";
+        } elseif (false === empty($update->callback_query)) {
+            $this->type = "callback_query";
+        } elseif (false === empty($update->shipping_query)) {
+            $this->type = "shipping_query";
+        } elseif (false === empty($update->pre_checkout_query)) {
+            $this->type = "pre_checkout_query";
+        }
+        return $this;
     }
 
     /**

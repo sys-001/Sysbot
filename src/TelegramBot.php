@@ -2,6 +2,7 @@
 
 namespace TelegramBot;
 
+use Doctrine\ORM\EntityManager;
 use GuzzleHttp\Client;
 use TelegramBot\{Event\DefaultEvent,
     Event\EventHandler,
@@ -13,6 +14,7 @@ use TelegramBot\{Event\DefaultEvent,
     Telegram\Types\Response,
     Telegram\Types\Update};
 
+require_once "bootstrap.php";
 
 /**
  * Class TelegramBot
@@ -24,63 +26,68 @@ class TelegramBot
     /**
      *
      */
+    public const BOT_VERSION = "1.0.0";
+    /**
+     *
+     */
     private const ENDPOINT = "https://api.telegram.org/";
-
+    /**
+     * @var array
+     */
+    public $shared_data = [];
+    /**
+     * @var bool
+     */
+    public $auto_flush = true;
     /**
      * @var null|string
      */
     private $token = null;
-
     /**
      * @var Client|null
      */
     private $client = null;
-
     /**
      * @var null|SettingsProvider
      */
     private $provider = null;
-
+    /**
+     * @var EntityManager|null
+     */
+    private $entity_manager = null;
     /**
      * @var null|Settings\Settings
      */
     private $settings = null;
-
     /**
      * @var mixed|null
      */
     private $update = null;
-
     /**
      * @var bool
      */
     private $use_polling = false;
-
-
     /**
      * @var null|Logger
      */
     private $logger = null;
-
-
     /**
      * @var null|ExceptionHandler
      */
     private $exception_handler = null;
-
     /**
      * @var null|EventHandler
      */
     private $event_handler = null;
     /**
-     * @var null
+     * @var null|\Closure
      */
     private $results_callback = null;
-
 
     /**
      * TelegramBot constructor.
      * @param string $token
+     * @param EntityManager $entity_manager
      * @param string $settings_path
      * @param int $log_verbosity
      * @param string|null $log_path
@@ -88,12 +95,13 @@ class TelegramBot
      * @throws TelegramBotException
      * @throws \Exception
      */
-    function __construct(string $token, string $settings_path = "config/settings.json", int $log_verbosity = 0, string $log_path = null)
+    function __construct(string $token, EntityManager $entity_manager, string $settings_path = "config/settings.json", int $log_verbosity = 0, string $log_path = null)
     {
         $this->logger = new Logger($log_verbosity, $log_path);
         $this->exception_handler = new ExceptionHandler($this->logger);
         $this->token = str_replace("bot", "", $token);
         $this->provider = new SettingsProvider($this->logger, $settings_path);
+        $this->entity_manager = $entity_manager;
         $this->event_handler = new EventHandler();
         if (file_exists($settings_path)) {
             $this->settings = $this->provider->loadSettings()->getSettings();
@@ -102,8 +110,7 @@ class TelegramBot
             $this->provider->saveSettings();
         }
         if ($this->logger->getVerbosity() >= 1) {
-            $log_message = sprintf("TelegramBot: New TelegramBot instance created (Token: '%s', Settings path: '%s', Logger verbosity: '%d', Logger path: '%s')",
-                $this->token, $settings_path, $log_verbosity, $log_path);
+            $log_message = sprintf("TelegramBot: New TelegramBot instance created (Token: '%s', Settings path: '%s', Logger verbosity: '%d', Logger path: '%s')", $this->token, $settings_path, $log_verbosity, $log_path);
             $this->logger->log($log_message);
         }
         if ($this->settings->getTelegramSection()->getUseTestApi()) {
@@ -112,6 +119,10 @@ class TelegramBot
         $this->client = new Client(['base_uri' => sprintf("%sbot%s/", self::ENDPOINT, $this->token), 'timeout' => 30]);
         if (!$this->getMe()->ok) {
             throw new TelegramBotException("Invalid token provided");
+        }
+        if (isset($_GET["show_dashboard"]) and password_verify($_GET["show_dashboard"], $this->settings->getGeneralSection()->getAdministrationPassword())) {
+            $this->logger->log("TelegramBot: Administration password verified; access to dashboard granted.");
+            $this->showDashboard();
         }
         $raw_update = file_get_contents("php://input");
         if (empty($this->getWebhookInfo()->result->url) and empty($raw_update)) {
@@ -122,23 +133,31 @@ class TelegramBot
         if ($this->settings->getGeneralSection()->getCheckIp() and !$this->use_polling) {
             $this->checkRequest();
         }
+        $shutdown_callback = function () {
+            if (!empty($this->shared_data)) {
+                $basic_data = new DBEntity\BasicData();
+                $basic_data->setName("shared_data");
+                $basic_data->setValue($this->shared_data);
+                $this->entity_manager->persist($basic_data);
+                $this->entity_manager->commit();
+            }
+        };
+        register_shutdown_function($shutdown_callback);
     }
-
 
     /**
      * @return null|Response
      */
-    function getMe(): ?Response
+    public function getMe(): ?Response
     {
         return $this->sendRequest(new Methods\GetMe());
     }
-
 
     /**
      * @param Methods\MethodInterface $method
      * @return null|Response
      */
-    function sendRequest(Methods\MethodInterface $method): ?Response
+    public function sendRequest(Methods\MethodInterface $method): ?Response
     {
         $method_name = $method->getMethodName();
         $params = $method->getParams();
@@ -187,15 +206,32 @@ class TelegramBot
         return Response::parseResponse($result);
     }
 
+    /**
+     *
+     */
+    private function showDashboard(): void
+    {
+        /** @noinspection PhpIncludeInspection */
+        include 'assets/dashboard.php';
+    }
+
+    /**
+     *
+     */
+    public function resetPeers(): void
+    {
+        $this->entity_manager->createQuery('delete from TelegramBot\DBEntity\Chat')->execute();
+        $this->entity_manager->createQuery('delete from TelegramBot\DBEntity\User')->execute();
+        return;
+    }
 
     /**
      * @return null|Response
      */
-    function getWebhookInfo(): ?Response
+    public function getWebhookInfo(): ?Response
     {
         return $this->sendRequest(new Methods\GetWebhookInfo());
     }
-
 
     /**
      * @throws TelegramBotException
@@ -203,17 +239,12 @@ class TelegramBot
     private function checkRequest(): void
     {
         $is_logging = $this->logger->getVerbosity() >= 1 ? true : false;
-        if (isset($_GET["administration"]) and password_verify($_GET["administration"], $this->settings->getGeneralSection()->getAdministrationPassword())) {
+        if (isset($_GET["bypass_check"]) and password_verify($_GET["bypass_check"], $this->settings->getGeneralSection()->getAdministrationPassword())) {
             $this->logger->log("TelegramBot: Administration password verified; request check ignored.");
             return;
         }
-        if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-            $ip = $_SERVER['HTTP_CLIENT_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
-            $ip = $_SERVER['REMOTE_ADDR'];
-        } else {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        if (is_null($_SERVER['REMOTE_ADDR'])) {
             throw new TelegramBotException("Could not get IP Address");
         }
         if ($is_logging) {
@@ -234,7 +265,6 @@ class TelegramBot
         return;
     }
 
-
     /**
      * @return null|SettingsProvider
      */
@@ -243,23 +273,21 @@ class TelegramBot
         return $this->provider;
     }
 
-
     /**
      *
      */
-    function refreshSettings(): void
+    public function refreshSettings(): void
     {
         $this->settings = $this->provider->getSettings();
         return;
     }
-
 
     /**
      * @param string $url
      * @param array $params
      * @return null|Response
      */
-    function setWebhook(string $url, array $params = []): ?Response
+    public function setWebhook(string $url, array $params = []): ?Response
     {
         $method = new Methods\SetWebhook(
             $url,
@@ -270,11 +298,10 @@ class TelegramBot
         return $response;
     }
 
-
     /**
      * @return null|Response
      */
-    function deleteWebhook(): ?Response
+    public function deleteWebhook(): ?Response
     {
         return $this->sendRequest(new Methods\DeleteWebhook());
     }
@@ -286,7 +313,7 @@ class TelegramBot
      * @param bool $disable_notification
      * @return null|Response
      */
-    function forwardMessage(string $chat_id, string $from_chat_id, int $message_id, bool $disable_notification = false): ?Response
+    public function forwardMessage(string $chat_id, string $from_chat_id, int $message_id, bool $disable_notification = false): ?Response
     {
         $method = new Methods\ForwardMessage(
             $chat_id,
@@ -297,7 +324,6 @@ class TelegramBot
         return $this->sendRequest($method);
     }
 
-
     /**
      * @param Types\InputFile $photo
      * @param string|null $chat_id
@@ -305,7 +331,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendPhoto(Types\InputFile $photo, string $chat_id = null, array $params = []): ?Response
+    public function sendPhoto(Types\InputFile $photo, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -324,7 +350,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @return int
      * @throws TelegramBotException
@@ -339,7 +364,6 @@ class TelegramBot
         throw new TelegramBotException('Unable to get Chat ID');
     }
 
-
     /**
      * @param Types\InputFile $audio
      * @param string|null $chat_id
@@ -347,7 +371,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendAudio(Types\InputFile $audio, string $chat_id = null, array $params = []): ?Response
+    public function sendAudio(Types\InputFile $audio, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -370,7 +394,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $document
      * @param string|null $chat_id
@@ -378,7 +401,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendDocument(Types\InputFile $document, string $chat_id = null, array $params = []): ?Response
+    public function sendDocument(Types\InputFile $document, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -398,7 +421,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $video
      * @param string|null $chat_id
@@ -406,7 +428,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendVideo(Types\InputFile $video, string $chat_id = null, array $params = []): ?Response
+    public function sendVideo(Types\InputFile $video, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -430,7 +452,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $video_note
      * @param string|null $chat_id
@@ -438,7 +459,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendVideoNote(Types\InputFile $video_note, string $chat_id = null, array $params = []): ?Response
+    public function sendVideoNote(Types\InputFile $video_note, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -458,7 +479,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $voice
      * @param string|null $chat_id
@@ -466,7 +486,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendVoice(Types\InputFile $voice, string $chat_id = null, array $params = []): ?Response
+    public function sendVoice(Types\InputFile $voice, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -486,7 +506,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $sticker
      * @param string|null $chat_id
@@ -494,7 +513,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendSticker(Types\InputFile $sticker, string $chat_id = null, array $params = []): ?Response
+    public function sendSticker(Types\InputFile $sticker, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -511,7 +530,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param array $media
      * @param string|null $chat_id
@@ -519,7 +537,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendMediaGroup(array $media, string $chat_id = null, array $params = []): ?Response
+    public function sendMediaGroup(array $media, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -532,7 +550,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param float $latitude
      * @param float $longitude
@@ -541,7 +558,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendLocation(float $latitude, float $longitude, string $chat_id = null, array $params = []): ?Response
+    public function sendLocation(float $latitude, float $longitude, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -557,7 +574,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param float $latitude
      * @param float $longitude
@@ -568,7 +584,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendVenue(float $latitude, float $longitude, string $title, string $address, string $chat_id = null, array $params = []): ?Response
+    public function sendVenue(float $latitude, float $longitude, string $title, string $address, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -587,18 +603,17 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param float $latitude
      * @param float $longitude
      * @param bool $is_inline
      * @param string $message_id
      * @param string|null $chat_id
-     * @param string|null $reply_markup
+     * @param Types\InlineKeyboardMarkup $reply_markup
      * @return null|Response
      * @throws TelegramBotException
      */
-    function editMessageLiveLocation(float $latitude, float $longitude, bool $is_inline, string $message_id, string $chat_id = null, string $reply_markup = null): ?Response
+    public function editMessageLiveLocation(float $latitude, float $longitude, bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -615,16 +630,15 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param bool $is_inline
      * @param string $message_id
      * @param string|null $chat_id
-     * @param string|null $reply_markup
+     * @param Types\InlineKeyboardMarkup $reply_markup
      * @return null|Response
      * @throws TelegramBotException
      */
-    function stopMessageLiveLocation(bool $is_inline, string $message_id, string $chat_id = null, string $reply_markup = null): ?Response
+    public function stopMessageLiveLocation(bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -639,7 +653,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string $phone_number
      * @param string $first_name
@@ -648,7 +661,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendContact(string $phone_number, string $first_name, string $chat_id = null, array $params = []): ?Response
+    public function sendContact(string $phone_number, string $first_name, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -665,14 +678,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string $action
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendChatAction(string $action, string $chat_id = null): ?Response
+    public function sendChatAction(string $action, string $chat_id = null): ?Response
     {
         $available_actions = [
             "typing",
@@ -698,13 +710,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param array $params
      * @return null|Response
      */
-    function getUserProfilePhotos(int $user_id, array $params = []): ?Response
+    public function getUserProfilePhotos(int $user_id, array $params = []): ?Response
     {
         return $this->sendRequest(new Methods\GetUserProfilePhotos(
             $user_id,
@@ -713,18 +724,16 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string $file_id
      * @return null|Response
      */
-    function getFile(string $file_id): ?Response
+    public function getFile(string $file_id): ?Response
     {
         return $this->sendRequest(new Methods\GetFile(
             $file_id
         ));
     }
-
 
     /**
      * @param int $user_id
@@ -733,7 +742,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function kickChatMember(int $user_id, string $chat_id = null, int $until_date = null): ?Response
+    public function kickChatMember(int $user_id, string $chat_id = null, int $until_date = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -745,14 +754,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function unbanChatMember(int $user_id, string $chat_id = null): ?Response
+    public function unbanChatMember(int $user_id, string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -763,7 +771,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param string|null $chat_id
@@ -771,7 +778,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function restrictChatMember(int $user_id, string $chat_id = null, array $params = []): ?Response
+    public function restrictChatMember(int $user_id, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -787,7 +794,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param string|null $chat_id
@@ -795,7 +801,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function promoteChatMember(int $user_id, string $chat_id = null, array $params = []): ?Response
+    public function promoteChatMember(int $user_id, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -814,13 +820,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function exportChatInviteLink(string $chat_id = null): ?Response
+    public function exportChatInviteLink(string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -830,14 +835,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $chat_photo
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function setChatPhoto(Types\InputFile $chat_photo, string $chat_id = null): ?Response
+    public function setChatPhoto(Types\InputFile $chat_photo, string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -848,13 +852,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function deleteChatPhoto(string $chat_id = null): ?Response
+    public function deleteChatPhoto(string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -864,14 +867,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string $title
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function setChatTitle(string $title, string $chat_id = null): ?Response
+    public function setChatTitle(string $title, string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -882,14 +884,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $description
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function setChatDescription(string $description = null, string $chat_id = null): ?Response
+    public function setChatDescription(string $description = null, string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -900,7 +901,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $message_id
      * @param string|null $chat_id
@@ -908,7 +908,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function pinChatMessage(int $message_id, string $chat_id = null, bool $disable_notification = false): ?Response
+    public function pinChatMessage(int $message_id, string $chat_id = null, bool $disable_notification = false): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -920,13 +920,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function unpinChatMessage(string $chat_id = null): ?Response
+    public function unpinChatMessage(string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -936,13 +935,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function leaveChat(string $chat_id = null): ?Response
+    public function leaveChat(string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -952,13 +950,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function getChat(string $chat_id = null): ?Response
+    public function getChat(string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -968,29 +965,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function getChatAdministrators(string $chat_id = null): ?Response
-    {
-        if (empty($chat_id)) {
-            $chat_id = $this->getChatID();
-        }
-        return $this->sendRequest(new Methods\GetChatAdministrators(
-            $chat_id
-        ));
-    }
-
-
-    /**
-     * @param string|null $chat_id
-     * @return null|Response
-     * @throws TelegramBotException
-     */
-    function getChatMembersCount(string $chat_id = null): ?Response
+    public function getChatMembersCount(string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1000,14 +980,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function getChatMember(int $user_id, string $chat_id = null)
+    public function getChatMember(int $user_id, string $chat_id = null)
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1018,14 +997,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string $sticker_set_name
      * @param string|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function setChatStickerSet(string $sticker_set_name, string $chat_id = null): ?Response
+    public function setChatStickerSet(string $sticker_set_name, string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1036,13 +1014,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int|null $chat_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function deleteChatStickerSet(int $chat_id = null): ?Response
+    public function deleteChatStickerSet(int $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1053,14 +1030,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param array $params
      * @param int|null $callback_query_id
      * @return null|Response
      * @throws TelegramBotException
      */
-    function answerCallbackQuery(array $params = [], int $callback_query_id = null): ?Response
+    public function answerCallbackQuery(array $params = [], int $callback_query_id = null): ?Response
     {
         if (empty($callback_query_id)) {
             $callback_query_id = $this->getCallbackQueryID();
@@ -1073,7 +1049,6 @@ class TelegramBot
             $params['cache_time'] ?? 0
         ));
     }
-
 
     /**
      * @return string
@@ -1096,7 +1071,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function editMessageText(string $text, bool $is_inline, string $message_id, string $chat_id = null, array $params = []): ?Response
+    public function editMessageText(string $text, bool $is_inline, string $message_id, string $chat_id = null, array $params = []): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -1125,7 +1100,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function editMessageCaption(bool $is_inline, string $message_id, string $chat_id = null, array $params = []): ?Response
+    public function editMessageCaption(bool $is_inline, string $message_id, string $chat_id = null, array $params = []): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -1153,7 +1128,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function editMessageReplyMarkup(bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
+    public function editMessageReplyMarkup(bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -1174,7 +1149,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function deleteMessage(int $message_id, int $chat_id = null): ?Response
+    public function deleteMessage(int $message_id, int $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1185,32 +1160,29 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param string $name
      * @return null|Response
      */
-    function getStickerSet(string $name): ?Response
+    public function getStickerSet(string $name): ?Response
     {
         return $this->sendRequest(new Methods\GetStickerSet(
             $name
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param Types\InputFile $sticker
      * @return null|Response
      */
-    function uploadStickerFile(int $user_id, Types\InputFile $sticker): ?Response
+    public function uploadStickerFile(int $user_id, Types\InputFile $sticker): ?Response
     {
         return $this->sendRequest(new Methods\UploadStickerFile(
             $user_id,
             $sticker
         ));
     }
-
 
     /**
      * @param int $user_id
@@ -1221,7 +1193,7 @@ class TelegramBot
      * @param array $params
      * @return null|Response
      */
-    function createNewStickerSet(int $user_id, string $name, string $title, Types\InputFile $sticker, string $emojis, array $params = []): ?Response
+    public function createNewStickerSet(int $user_id, string $name, string $title, Types\InputFile $sticker, string $emojis, array $params = []): ?Response
     {
         return $this->sendRequest(new Methods\CreateNewStickerSet(
             $user_id,
@@ -1234,7 +1206,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param string $name
@@ -1243,7 +1214,7 @@ class TelegramBot
      * @param Types\MaskPosition|null $mask_position
      * @return null|Response
      */
-    function addStickerToSet(int $user_id, string $name, Types\InputFile $sticker, string $emojis, Types\MaskPosition $mask_position = null): ?Response
+    public function addStickerToSet(int $user_id, string $name, Types\InputFile $sticker, string $emojis, Types\MaskPosition $mask_position = null): ?Response
     {
         return $this->sendRequest(new Methods\AddStickerToSet(
             $user_id,
@@ -1254,13 +1225,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $sticker
      * @param int $position
      * @return null|Response
      */
-    function setStickerPositionInSet(Types\InputFile $sticker, int $position): ?Response
+    public function setStickerPositionInSet(Types\InputFile $sticker, int $position): ?Response
     {
         return $this->sendRequest(new Methods\SetStickerPositionInSet(
             $sticker,
@@ -1268,12 +1238,11 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Types\InputFile $sticker
      * @return null|Response
      */
-    function deleteStickerFromSet(Types\InputFile $sticker): ?Response
+    public function deleteStickerFromSet(Types\InputFile $sticker): ?Response
     {
         return $this->sendRequest(new Methods\DeleteStickerFromSet(
             $sticker
@@ -1287,7 +1256,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function answerInlineQuery(array $results, array $params = [], string $inline_query_id = null): ?Response
+    public function answerInlineQuery(array $results, array $params = [], string $inline_query_id = null): ?Response
     {
         if (empty($inline_query_id)) {
             $inline_query_id = $this->getInlineQueryID();
@@ -1303,7 +1272,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @return int
      * @throws TelegramBotException
@@ -1315,7 +1283,6 @@ class TelegramBot
         }
         throw new TelegramBotException('Unable to get Inline Query ID');
     }
-
 
     /**
      * @param string $title
@@ -1330,7 +1297,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendInvoice(string $title, string $description, string $payload, string $provider_token, string $start_parameter, string $currency, array $prices, array $params = [], string $chat_id = null): ?Response
+    public function sendInvoice(string $title, string $description, string $payload, string $provider_token, string $start_parameter, string $currency, array $prices, array $params = [], string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1362,7 +1329,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param bool $ok
      * @param array $params
@@ -1370,7 +1336,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function answerShippingQuery(bool $ok, array $params = [], int $shipping_query_id = null): ?Response
+    public function answerShippingQuery(bool $ok, array $params = [], int $shipping_query_id = null): ?Response
     {
         if (empty($shipping_query_id)) {
             $shipping_query_id = $this->getShippingQueryID();
@@ -1388,7 +1354,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @return int
      * @throws TelegramBotException
@@ -1401,7 +1366,6 @@ class TelegramBot
         throw new TelegramBotException('Unable to get Shipping Query ID');
     }
 
-
     /**
      * @param bool $ok
      * @param string|null $error_message
@@ -1409,7 +1373,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function answerPreCheckoutQuery(bool $ok, string $error_message = null, int $pre_checkout_query_id = null): ?Response
+    public function answerPreCheckoutQuery(bool $ok, string $error_message = null, int $pre_checkout_query_id = null): ?Response
     {
         if (empty($pre_checkout_query_id)) {
             $pre_checkout_query_id = $this->getPreCheckoutQueryID();
@@ -1421,7 +1385,6 @@ class TelegramBot
             $error_message ?? null
         ));
     }
-
 
     /**
      * @return int
@@ -1435,20 +1398,18 @@ class TelegramBot
         throw new TelegramBotException('Unable to get Pre-Checkout Query ID');
     }
 
-
     /**
      * @param int $user_id
      * @param array $errors
      * @return null|Response
      */
-    function setPassportDataErrors(int $user_id, array $errors): ?Response
+    public function setPassportDataErrors(int $user_id, array $errors): ?Response
     {
         return $this->sendRequest(new Methods\SetPassportDataErrors(
             $user_id,
             $errors
         ));
     }
-
 
     /**
      * @param string $game_short_name
@@ -1457,7 +1418,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendGame(string $game_short_name, array $params = [], string $chat_id = null): ?Response
+    public function sendGame(string $game_short_name, array $params = [], string $chat_id = null): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1471,7 +1432,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param int $score
@@ -1482,7 +1442,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function setGameScore(int $user_id, int $score, bool $is_inline, string $message_id, array $params = [], string $chat_id = null): ?Response
+    public function setGameScore(int $user_id, int $score, bool $is_inline, string $message_id, array $params = [], string $chat_id = null): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -1500,7 +1460,6 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param int $user_id
      * @param bool $is_inline
@@ -1509,7 +1468,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function getGameHighScores(int $user_id, bool $is_inline, int $message_id, string $chat_id = null): ?Response
+    public function getGameHighScores(int $user_id, bool $is_inline, int $message_id, string $chat_id = null): ?Response
     {
         if ($is_inline) {
             $inline_message_id = $message_id;
@@ -1524,12 +1483,13 @@ class TelegramBot
         ));
     }
 
-
     /**
      *
      * @throws TelegramBotException
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
      */
-    function start(): void
+    public function start(): void
     {
         $is_logging = $this->logger->getVerbosity() === 2 ? true : false;
         if ($this->use_polling) {
@@ -1572,7 +1532,6 @@ class TelegramBot
         return;
     }
 
-
     /**
      * @param string $text
      * @param string|null $chat_id
@@ -1580,7 +1539,7 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    function sendMessage(string $text, string $chat_id = null, array $params = []): ?Response
+    public function sendMessage(string $text, string $chat_id = null, array $params = []): ?Response
     {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
@@ -1599,12 +1558,11 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param array $params
      * @return null|Response
      */
-    function getUpdates(array $params = []): ?Response
+    public function getUpdates(array $params = []): ?Response
     {
         return $this->sendRequest(new Methods\GetUpdates(
             $params['offset'] ?? 0,
@@ -1614,10 +1572,12 @@ class TelegramBot
         ));
     }
 
-
     /**
      * @param Update $update
      * @return array
+     * @throws TelegramBotException
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
      */
     private function processUpdate(Update $update): array
     {
@@ -1625,9 +1585,69 @@ class TelegramBot
             $log_message = sprintf("TelegramBot: New Update received. (%s)", json_encode($update, JSON_UNESCAPED_SLASHES));
             $this->logger->log($log_message);
         }
+        $update_data = $update->{$update->type};
+        if (!empty($update_data->from)) {
+            $this->addUser($update_data->from->id);
+        }
+        if (!empty($update_data->chat) and $update_data->chat->id < 0) {
+            $admins_data = $this->getChatAdministrators($update_data->chat->id);
+            $admins = array_map(function ($obj) {
+                return $obj->user->id;
+            }, (array)$admins_data->result);
+            $this->addChat($update_data->chat->id, $update_data->chat->type, $admins);
+        }
         $this->update = $update;
         $results = $this->event_handler->processEvents($this, $this->update);
         return $results;
+    }
+
+    /**
+     * @param int $user_id
+     * @param bool $blocked
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
+    private function addUser(int $user_id, bool $blocked = false): void
+    {
+        $user = $this->entity_manager->getRepository('TelegramBot\DBEntity\User')->find($user_id);
+        if (is_null($user)) $user = new DBEntity\User();
+        $user->setId($user_id);
+        $user->setBlocked($blocked);
+        $this->entity_manager->persist($user);
+        if (true == $this->auto_flush) $this->entity_manager->flush();
+    }
+
+    /**
+     * @param string|null $chat_id
+     * @return null|Response
+     * @throws TelegramBotException
+     */
+    public function getChatAdministrators(string $chat_id = null): ?Response
+    {
+        if (empty($chat_id)) {
+            $chat_id = $this->getChatID();
+        }
+        return $this->sendRequest(new Methods\GetChatAdministrators(
+            $chat_id
+        ));
+    }
+
+    /**
+     * @param int $chat_id
+     * @param string $type
+     * @param array $admins
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
+    private function addChat(int $chat_id, string $type, array $admins): void
+    {
+        $chat = $this->entity_manager->getRepository('TelegramBot\DBEntity\Chat')->find($chat_id);
+        if (is_null($chat)) $chat = new DBEntity\Chat();
+        $chat->setId($chat_id);
+        $chat->setType($type);
+        $chat->setAdmins($admins);
+        $this->entity_manager->persist($chat);
+        if (true == $this->auto_flush) $this->entity_manager->flush();
     }
 
     /**
@@ -1657,14 +1677,14 @@ class TelegramBot
      * @param array $update_path
      * @param string $command
      * @param \Closure $callback
-     * @param bool $auto_add
+     * @param bool $admins_only
      * @return DefaultEvent
      * @throws Exception\EventException
      */
-    public function createSimpleEvent(array $update_path, string $command, \Closure $callback, bool $auto_add = true): DefaultEvent
+    public function createSimpleEvent(array $update_path, string $command, \Closure $callback, bool $admins_only = false): DefaultEvent
     {
         $trigger = new Trigger($command);
-        $event = (new class($trigger, $callback, $update_path) extends DefaultEvent
+        $event = (new class($trigger, $callback, $admins_only, $update_path) extends DefaultEvent
         {
             /**
              * @var array
@@ -1679,11 +1699,12 @@ class TelegramBot
              * Class constructor.
              * @param Trigger $trigger
              * @param \Closure $callback
+             * @param bool $admins_only
              * @param array $final_update_path
              */
-            function __construct(Trigger $trigger, \Closure $callback, array $final_update_path)
+            function __construct(Trigger $trigger, \Closure $callback, bool $admins_only, array $final_update_path)
             {
-                parent::__construct($trigger, $callback);
+                parent::__construct($trigger, $callback, $admins_only);
                 $this::$update_path = $final_update_path;
                 $final_type = str_replace('edited_', '', $final_update_path[0]);
                 $final_type = str_replace('_', '', ucwords($final_type, '_'));
@@ -1692,7 +1713,7 @@ class TelegramBot
                 $this::$type = $final_type;
             }
         });
-        if ($auto_add) $this->addEvent($event);
+        $this->addEvent($event);
         return $event;
     }
 
@@ -1712,5 +1733,23 @@ class TelegramBot
     public function removeEvent(DefaultEvent $event): bool
     {
         return $this->event_handler->removeEvent($event);
+    }
+
+    /**
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
+    public function flushData(): void
+    {
+        $this->entity_manager->flush();
+        return;
+    }
+
+    /**
+     * @return Update|null
+     */
+    public function getCurrentUpdate(): ?Update
+    {
+        return $this->update;
     }
 }

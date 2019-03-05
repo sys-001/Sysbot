@@ -12,13 +12,17 @@ abstract class DefaultEvent implements EventInterface
 {
 
     /**
-     * @var
+     * @var string
      */
     public static $type;
     /**
-     * @var
+     * @var string
      */
     public static $update_path;
+    /**
+     * @var bool
+     */
+    public $admins_only;
     /**
      * @var \Closure
      */
@@ -36,12 +40,14 @@ abstract class DefaultEvent implements EventInterface
      * DefaultEvent constructor.
      * @param Trigger $trigger
      * @param \Closure $callback
+     * @param bool $admins_only
      */
-    function __construct(Trigger $trigger, \Closure $callback)
+    function __construct(Trigger $trigger, \Closure $callback, bool $admins_only = false)
     {
         $this->uuid = uniqid();
         $this->trigger = $trigger;
         $this->callback = $callback;
+        $this->admins_only = $admins_only;
     }
 
     /**
