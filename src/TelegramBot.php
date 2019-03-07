@@ -14,8 +14,6 @@ use TelegramBot\{Event\DefaultEvent,
     Telegram\Types\Response,
     Telegram\Types\Update};
 
-require_once "bootstrap.php";
-
 /**
  * Class TelegramBot
  * @package TelegramBot
@@ -118,10 +116,10 @@ class TelegramBot
         }
         $this->client = new Client(['base_uri' => sprintf("%sbot%s/", self::ENDPOINT, $this->token), 'timeout' => 30]);
         if (!$this->getMe()->ok) {
-            throw new TelegramBotException("Invalid token provided");
+            throw new TelegramBotException("Invalid bot token provided");
         }
-        if (isset($_GET["show_dashboard"]) and password_verify($_GET["show_dashboard"], $this->settings->getGeneralSection()->getAdministrationPassword())) {
-            $this->logger->log("TelegramBot: Administration password verified; access to dashboard granted.");
+        if (isset($_GET['show_dashboard'])) {
+            $this->checkAuthorization($_GET['show_dashboard']);
             $this->showDashboard();
         }
         $raw_update = file_get_contents("php://input");
@@ -133,6 +131,15 @@ class TelegramBot
         if ($this->settings->getGeneralSection()->getCheckIp() and !$this->use_polling) {
             $this->checkRequest();
         }
+        $this->createSimpleEvent(['message', 'text'], '/gen_auth', function (TelegramBot $bot) {
+            $auth_token = bin2hex(random_bytes(8));
+            $key = ftok(__FILE__, 't');
+            $mem = shmop_open($key, 'c', 0600, 522);
+            shmop_write($mem, time(), 0);
+            $auth_hash = hash('sha512', $auth_token);
+            shmop_write($mem, $auth_hash, 10);
+            $bot->sendMessage('Your authorization token is: <code>$auth_token</code>.\nIt will connect your web browser to this user profile, and it will expire after using it (or after 300 seconds).');
+        }, true);
         $shutdown_callback = function () {
             if (!empty($this->shared_data)) {
                 $basic_data = new DBEntity\BasicData();
@@ -143,6 +150,42 @@ class TelegramBot
             }
         };
         register_shutdown_function($shutdown_callback);
+    }
+
+    /**
+     * @param string $password
+     * @throws TelegramBotException
+     */
+    private function checkAuthorization(string $password): void
+    {
+        $hashed_password = hash('sha512', $password);
+        $session_started = session_start();
+        $auth_hash = $_SESSION['auth_hash'] ?? null;
+        if (is_null($auth_hash)) {
+            $key = ftok(__FILE__, 't');
+            $mem = shmop_open($key, 'c', 0600, 522);
+            $timestamp = shmop_read($mem, 0, 10);
+            $auth_hash = shmop_read($mem, 10, 512);
+            if (empty($auth_hash)) throw new TelegramBotException('Authorization token unavailable, generate one first');
+            $time_diff = time() - $timestamp;
+            if ($time_diff >= 300) {
+                shmop_delete($mem);
+                throw new TelegramBotException('Authorization token expired, generate another one');
+            }
+            if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
+            if ($session_started) {
+                $_SESSION['auth_hash'] = $auth_hash;
+                $this->logger->log('TelegramBot: Authorization token verified, request granted; session registered successfully.');
+                shmop_delete($mem);
+                return;
+            }
+            $message = sprintf("TelegramBot: Authorization token verified, request granted; session could not be registered (token will be valid only for %s seconds).", $time_diff);
+            $this->logger->log($message);
+            return;
+        }
+        if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
+        $this->logger->log('TelegramBot: Authorization token verified, request granted; session resumed successfully.');
+        return;
     }
 
     /**
@@ -239,8 +282,8 @@ class TelegramBot
     private function checkRequest(): void
     {
         $is_logging = $this->logger->getVerbosity() >= 1 ? true : false;
-        if (isset($_GET["bypass_check"]) and password_verify($_GET["bypass_check"], $this->settings->getGeneralSection()->getAdministrationPassword())) {
-            $this->logger->log("TelegramBot: Administration password verified; request check ignored.");
+        if (isset($_GET['bypass_check'])) {
+            $this->checkAuthorization($_GET['bypass_check']);
             return;
         }
         $ip = $_SERVER['REMOTE_ADDR'] ?? null;

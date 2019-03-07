@@ -5,9 +5,12 @@
   "require": {
     "doctrine/orm": "^2.6.2",
     "ext-json": "*",
-    "ext-redis": "^4.2",
     "guzzlehttp/guzzle": "~6.0",
-    "php": "^7.2"
+    "php": "^7.2",
+    "ext-shmop": "*"
+  },
+  "suggest": {
+    "ext-redis": "Required if you plan to use Doctrine Caching."
   },
   "autoload": {
     "psr-4": {

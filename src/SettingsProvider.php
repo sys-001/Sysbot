@@ -61,7 +61,6 @@ class SettingsProvider
 
     /**
      * @param AdminHandler|null $admin_handler
-     * @param string $administration_password
      * @param bool $check_ip
      * @param string $parse_mode
      * @param bool $send_actions
@@ -78,7 +77,6 @@ class SettingsProvider
      */
     function createSettings(
         AdminHandler $admin_handler = null,
-        string $administration_password = "password",
         bool $check_ip = true,
         string $parse_mode = "HTML",
         bool $send_actions = true,
@@ -95,11 +93,7 @@ class SettingsProvider
         if (null === $admin_handler) {
             $admin_handler = new AdminHandler([]);
         }
-        $hash_info = password_get_info($administration_password);
-        if (1 != $hash_info['algo']) {
-            $administration_password = password_hash($administration_password, PASSWORD_DEFAULT);
-        }
-        $general = new Sections\GeneralSection($admin_handler, $administration_password, $check_ip);
+        $general = new Sections\GeneralSection($admin_handler, $check_ip);
         $telegram = new Sections\TelegramSection($parse_mode, $send_actions, $use_test_api);
         $maintenance = new Sections\MaintenanceSection($maintenance_enabled, $maintenance_message);
         $antiflood = new Sections\AntifloodSection($antiflood_enabled, $antiflood_seconds, $antiflood_messages_number,
@@ -109,7 +103,6 @@ class SettingsProvider
             $log_message = sprintf("SettingsProvider: New Settings instance created. (%s)", json_encode([
                 'general' => [
                     'admins' => $admin_handler->getAdmins(),
-                    'administration_password' => $administration_password,
                     'check_ip' => $check_ip
                 ],
                 'telegram' => [
@@ -147,7 +140,6 @@ class SettingsProvider
         $settings_json = json_encode([
             'general' => [
                 'admins' => $general->getAdminHandler()->getAdmins(),
-                'administration_password' => $general->getAdministrationPassword(),
                 'check_ip' => $general->getCheckIp()
             ],
             'telegram' => [
@@ -204,8 +196,7 @@ class SettingsProvider
             throw new SettingsProviderException("Invalid settings file");
         }
         $admin_handler = new AdminHandler($settings->general->admins);
-        $general_section = new Sections\GeneralSection($admin_handler, $settings->general->administration_password,
-            $settings->general->check_ip);
+        $general_section = new Sections\GeneralSection($admin_handler, $settings->general->check_ip);
         $telegram_section = new Sections\TelegramSection($settings->telegram->parse_mode,
             $settings->telegram->send_actions, $settings->telegram->use_test_api);
         $maintenance_section = new Sections\MaintenanceSection($settings->maintenance->enabled,
