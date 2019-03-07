@@ -24,7 +24,7 @@ class TelegramBot
     /**
      *
      */
-    public const BOT_VERSION = "1.0.0";
+    public const BOT_VERSION = "1.0.1";
     /**
      *
      */
@@ -134,11 +134,12 @@ class TelegramBot
         $this->createSimpleEvent(['message', 'text'], '/gen_auth', function (TelegramBot $bot) {
             $auth_token = bin2hex(random_bytes(8));
             $key = ftok(__FILE__, 't');
-            $mem = shmop_open($key, 'c', 0600, 522);
+            $mem = shmop_open($key, 'c', 0600, 138);
             shmop_write($mem, time(), 0);
             $auth_hash = hash('sha512', $auth_token);
             shmop_write($mem, $auth_hash, 10);
-            $bot->sendMessage('Your authorization token is: <code>$auth_token</code>.\nIt will connect your web browser to this user profile, and it will expire after using it (or after 300 seconds).');
+            $text = sprintf('Your authorization token is: <code>%s</code>.%sIt will connect your web browser to this user profile, and it will expire after using it (or after 300 seconds).', $auth_token, PHP_EOL);
+            $bot->sendMessage($text);
         }, true);
         $shutdown_callback = function () {
             if (!empty($this->shared_data)) {
@@ -150,42 +151,6 @@ class TelegramBot
             }
         };
         register_shutdown_function($shutdown_callback);
-    }
-
-    /**
-     * @param string $password
-     * @throws TelegramBotException
-     */
-    private function checkAuthorization(string $password): void
-    {
-        $hashed_password = hash('sha512', $password);
-        $session_started = session_start();
-        $auth_hash = $_SESSION['auth_hash'] ?? null;
-        if (is_null($auth_hash)) {
-            $key = ftok(__FILE__, 't');
-            $mem = shmop_open($key, 'c', 0600, 522);
-            $timestamp = shmop_read($mem, 0, 10);
-            $auth_hash = shmop_read($mem, 10, 512);
-            if (empty($auth_hash)) throw new TelegramBotException('Authorization token unavailable, generate one first');
-            $time_diff = time() - $timestamp;
-            if ($time_diff >= 300) {
-                shmop_delete($mem);
-                throw new TelegramBotException('Authorization token expired, generate another one');
-            }
-            if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
-            if ($session_started) {
-                $_SESSION['auth_hash'] = $auth_hash;
-                $this->logger->log('TelegramBot: Authorization token verified, request granted; session registered successfully.');
-                shmop_delete($mem);
-                return;
-            }
-            $message = sprintf("TelegramBot: Authorization token verified, request granted; session could not be registered (token will be valid only for %s seconds).", $time_diff);
-            $this->logger->log($message);
-            return;
-        }
-        if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
-        $this->logger->log('TelegramBot: Authorization token verified, request granted; session resumed successfully.');
-        return;
     }
 
     /**
@@ -250,22 +215,48 @@ class TelegramBot
     }
 
     /**
+     * @param string $password
+     * @throws TelegramBotException
+     */
+    private function checkAuthorization(string $password): void
+    {
+        $hashed_password = hash('sha512', $password);
+        $session_started = session_start();
+        $auth_hash = $_SESSION['auth_hash'] ?? null;
+        if (is_null($auth_hash)) {
+            $key = ftok(__FILE__, 't');
+            $mem = shmop_open($key, 'c', 0600, 138);
+            $timestamp = shmop_read($mem, 0, 10);
+            $auth_hash = shmop_read($mem, 10, 128);
+            if (empty($auth_hash)) throw new TelegramBotException('Authorization token unavailable, generate one first');
+            $time_diff = time() - $timestamp;
+            if ($time_diff >= 300) {
+                shmop_delete($mem);
+                throw new TelegramBotException('Authorization token expired, generate another one');
+            }
+            if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
+            if ($session_started) {
+                $_SESSION['auth_hash'] = $auth_hash;
+                $this->logger->log('TelegramBot: Authorization token verified, request granted; session registered successfully.');
+                shmop_delete($mem);
+                return;
+            }
+            $message = sprintf("TelegramBot: Authorization token verified, request granted; session could not be registered (token will be valid only for %s seconds).", $time_diff);
+            $this->logger->log($message);
+            return;
+        }
+        if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
+        $this->logger->log('TelegramBot: Authorization token verified, request granted; session resumed successfully.');
+        return;
+    }
+
+    /**
      *
      */
     private function showDashboard(): void
     {
         /** @noinspection PhpIncludeInspection */
         include 'assets/dashboard.php';
-    }
-
-    /**
-     *
-     */
-    public function resetPeers(): void
-    {
-        $this->entity_manager->createQuery('delete from TelegramBot\DBEntity\Chat')->execute();
-        $this->entity_manager->createQuery('delete from TelegramBot\DBEntity\User')->execute();
-        return;
     }
 
     /**
@@ -305,6 +296,109 @@ class TelegramBot
             $log_message = sprintf("TelegramBot: Request from IP Address '%s' is valid.", $ip);
             $this->logger->log($log_message);
         }
+        return;
+    }
+
+    /**
+     * @param array $update_path
+     * @param string $command
+     * @param \Closure $callback
+     * @param bool $admins_only
+     * @return DefaultEvent
+     * @throws Exception\EventException
+     */
+    public function createSimpleEvent(array $update_path, string $command, \Closure $callback, bool $admins_only = false): DefaultEvent
+    {
+        $trigger = new Trigger($command);
+        $event = (new class($trigger, $callback, $admins_only, $update_path) extends DefaultEvent
+        {
+            /**
+             * @var array
+             */
+            public static $update_path;
+            /**
+             * @var string
+             */
+            public static $type;
+
+            /**
+             * Class constructor.
+             * @param Trigger $trigger
+             * @param \Closure $callback
+             * @param bool $admins_only
+             * @param array $final_update_path
+             */
+            function __construct(Trigger $trigger, \Closure $callback, bool $admins_only, array $final_update_path)
+            {
+                parent::__construct($trigger, $callback, $admins_only);
+                $this::$update_path = $final_update_path;
+                $final_type = str_replace('edited_', '', $final_update_path[0]);
+                $final_type = str_replace('_', '', ucwords($final_type, '_'));
+                if ($final_type === 'ChannelPost') $final_type = 'Message';
+                $final_type = sprintf('TelegramBot\Telegram\Types\%s', $final_type);
+                $this::$type = $final_type;
+            }
+        });
+        $this->addEvent($event);
+        return $event;
+    }
+
+    /**
+     * @param DefaultEvent $event
+     */
+    public function addEvent(DefaultEvent $event): void
+    {
+        $this->event_handler->addEvent($event);
+        return;
+    }
+
+    /**
+     * @param string $text
+     * @param string|null $chat_id
+     * @param array $params
+     * @return null|Response
+     * @throws TelegramBotException
+     */
+    public function sendMessage(string $text, string $chat_id = null, array $params = []): ?Response
+    {
+        if (empty($chat_id)) {
+            $chat_id = $this->getChatID();
+        }
+        if (!isset($params['parse_mode'])) {
+            $params['parse_mode'] = $this->settings->getTelegramSection()->getParseMode();
+        }
+        return $this->sendRequest(new Methods\SendMessage(
+            $chat_id,
+            $text,
+            $params['parse_mode'] ?? null,
+            $params['disable_web_page_preview'] ?? false,
+            $params['disable_notification'] ?? false,
+            $params['reply_to_message_id'] ?? null,
+            $params['reply_markup'] ?? null
+        ));
+    }
+
+    /**
+     * @return int
+     * @throws TelegramBotException
+     */
+    private function getChatID(): int
+    {
+        if (!empty($this->update->message->chat->id)) {
+            return $this->update->message->chat->id;
+        } elseif (!empty($this->update->callback_query->message->chat->id)) {
+            return $this->update->callback_query->message->chat->id;
+        }
+        throw new TelegramBotException('Unable to get Chat ID');
+    }
+
+    /**
+     *
+     */
+    public function resetPeers(): void
+    {
+        $this->entity_manager->createQuery('delete from TelegramBot\DBEntity\Chat')->execute();
+        $this->entity_manager->createQuery('delete from TelegramBot\DBEntity\User')->execute();
         return;
     }
 
@@ -391,20 +485,6 @@ class TelegramBot
             $params['reply_to_message_id'] ?? null,
             $params['reply_markup'] ?? null
         ));
-    }
-
-    /**
-     * @return int
-     * @throws TelegramBotException
-     */
-    private function getChatID(): int
-    {
-        if (!empty($this->update->message->chat->id)) {
-            return $this->update->message->chat->id;
-        } elseif (!empty($this->update->callback_query->message->chat->id)) {
-            return $this->update->callback_query->message->chat->id;
-        }
-        throw new TelegramBotException('Unable to get Chat ID');
     }
 
     /**
@@ -1540,7 +1620,8 @@ class TelegramBot
                 $this->logger->log("TelegramBot: Long Polling mode started.");
             }
             $offset = 0;
-            foreach ($this->settings->getGeneralSection()->getAdminHandler()->getAdmins() as $admin) {
+            $admin_handler = $this->settings->getGeneralSection()->getAdminHandler();
+            foreach ($admin_handler->getAdmins() as $admin) {
                 $this->sendMessage("Bot started correctly.", $admin);
             }
             while (true) {
@@ -1554,7 +1635,7 @@ class TelegramBot
                         $this->sendMessage($this->settings->getMaintenanceSection()->getMessage());
                         continue;
                     }
-                    if (isset($update->message->text) and $update->message->text === "/halt") {
+                    if (isset($update->message->text) and $update->message->text === "/halt" and $admin_handler->isAdmin($update->message->from->id)) {
                         $this->sendMessage("Shutting down...");
                         $offset++;
                         $this->getUpdates(['offset' => $offset, 'limit' => 1]);
@@ -1573,32 +1654,6 @@ class TelegramBot
             if (!empty($results)) $this->processResults($results);
         }
         return;
-    }
-
-    /**
-     * @param string $text
-     * @param string|null $chat_id
-     * @param array $params
-     * @return null|Response
-     * @throws TelegramBotException
-     */
-    public function sendMessage(string $text, string $chat_id = null, array $params = []): ?Response
-    {
-        if (empty($chat_id)) {
-            $chat_id = $this->getChatID();
-        }
-        if (!isset($params['parse_mode'])) {
-            $params['parse_mode'] = $this->settings->getTelegramSection()->getParseMode();
-        }
-        return $this->sendRequest(new Methods\SendMessage(
-            $chat_id,
-            $text,
-            $params['parse_mode'] ?? null,
-            $params['disable_web_page_preview'] ?? false,
-            $params['disable_notification'] ?? false,
-            $params['reply_to_message_id'] ?? null,
-            $params['reply_markup'] ?? null
-        ));
     }
 
     /**
@@ -1714,59 +1769,6 @@ class TelegramBot
     {
         $this->results_callback = $callback;
         return $this;
-    }
-
-    /**
-     * @param array $update_path
-     * @param string $command
-     * @param \Closure $callback
-     * @param bool $admins_only
-     * @return DefaultEvent
-     * @throws Exception\EventException
-     */
-    public function createSimpleEvent(array $update_path, string $command, \Closure $callback, bool $admins_only = false): DefaultEvent
-    {
-        $trigger = new Trigger($command);
-        $event = (new class($trigger, $callback, $admins_only, $update_path) extends DefaultEvent
-        {
-            /**
-             * @var array
-             */
-            public static $update_path;
-            /**
-             * @var string
-             */
-            public static $type;
-
-            /**
-             * Class constructor.
-             * @param Trigger $trigger
-             * @param \Closure $callback
-             * @param bool $admins_only
-             * @param array $final_update_path
-             */
-            function __construct(Trigger $trigger, \Closure $callback, bool $admins_only, array $final_update_path)
-            {
-                parent::__construct($trigger, $callback, $admins_only);
-                $this::$update_path = $final_update_path;
-                $final_type = str_replace('edited_', '', $final_update_path[0]);
-                $final_type = str_replace('_', '', ucwords($final_type, '_'));
-                if ($final_type === 'ChannelPost') $final_type = 'Message';
-                $final_type = sprintf('TelegramBot\Telegram\Types\%s', $final_type);
-                $this::$type = $final_type;
-            }
-        });
-        $this->addEvent($event);
-        return $event;
-    }
-
-    /**
-     * @param DefaultEvent $event
-     */
-    public function addEvent(DefaultEvent $event): void
-    {
-        $this->event_handler->addEvent($event);
-        return;
     }
 
     /**
