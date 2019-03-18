@@ -4,6 +4,8 @@
 namespace TelegramBot\Event;
 
 
+use TelegramBot\Addons\AddonHandler;
+use TelegramBot\Addons\DefaultAddon;
 use TelegramBot\Telegram\Types\Update;
 use TelegramBot\TelegramBot;
 
@@ -25,6 +27,20 @@ class EventHandler
      * @var array
      */
     private $events = [];
+
+    /**
+     * @var array
+     */
+    private $addons = [];
+
+    /**
+     * EventHandler constructor.
+     */
+    public function __construct()
+    {
+        $addon_handler = new AddonHandler();
+        $this->addons = $addon_handler->getAddons();
+    }
 
     /**
      * @param DefaultEvent $event
@@ -66,6 +82,8 @@ class EventHandler
         $events_list = $this->events[$update_path[0]][$update_path[1]] ?? null;
         if (!isset($events_list)) return $results;
         $update_event = $update->{$update_path[0]}->{$update_path[1]};
+        $addons_result = $this->loadAddons($bot, $update_path);
+        if (!$addons_result) return $results;
         foreach ($events_list as $event_uuid => $event) {
             /* @var DefaultEvent $event */
             $event_regex = $event->getTrigger()->getRegex();
@@ -87,10 +105,6 @@ class EventHandler
      * @param Update $update
      * @return array|null
      */
-    /**
-     * @param Update $update
-     * @return array|null
-     */
     private function getUpdatePath(Update $update): ?array
     {
         $main_path = '';
@@ -104,5 +118,24 @@ class EventHandler
         }
         if (empty($sub_path)) return null;
         return [$main_path, $sub_path];
+    }
+
+    /**
+     * @param TelegramBot $bot
+     * @param array $update_path
+     * @return bool
+     */
+
+    private function loadAddons(TelegramBot $bot, array $update_path): bool
+    {
+        $path_string = implode("::", $update_path);
+        foreach ($this->addons as $addon) {
+            /* @var DefaultAddon $addon */
+            if (!in_array($path_string, $addon->getUpdatePaths())) continue;
+            $callback = $addon->getCallback();
+            $result = $callback($bot);
+            if (false == $result) return false;
+        }
+        return true;
     }
 }

@@ -24,7 +24,7 @@ class TelegramBot
     /**
      *
      */
-    public const BOT_VERSION = "1.0.1";
+    public const BOT_VERSION = "1.0.2";
     /**
      *
      */
@@ -390,6 +390,14 @@ class TelegramBot
             return $this->update->callback_query->message->chat->id;
         }
         throw new TelegramBotException('Unable to get Chat ID');
+    }
+
+    /**
+     * @return EntityManager|null
+     */
+    public function getEntityManager(): ?EntityManager
+    {
+        return $this->entity_manager;
     }
 
     /**
