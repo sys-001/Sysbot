@@ -39,7 +39,9 @@ class Invoice
      */
     public static function parseInvoice(?\stdClass $invoice): ?self
     {
-        if (is_null($invoice)) return null;
+        if (is_null($invoice)) {
+            return null;
+        }
         return (new self())
             ->setTitle($invoice->title ?? null)
             ->setDescription($invoice->description ?? null)

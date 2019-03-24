@@ -149,8 +149,31 @@ class SendInvoice implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param InlineKeyboardMarkup|null $reply_markup
      */
-    function __construct(string $chat_id, string $title, string $description, string $payload, string $provider_token, string $start_parameter, string $currency, array $prices, string $provider_data = null, string $photo_url = null, int $photo_size = null, int $photo_width = null, int $photo_height = null, bool $need_name = false, bool $need_phone_number = false, bool $need_email = false, bool $need_shipping_address = false, bool $send_phone_number_to_provider = false, bool $send_email_to_provider = false, bool $is_flexible = false, bool $disable_notification = false, int $reply_to_message_id = null, InlineKeyboardMarkup $reply_markup = null)
-    {
+    function __construct(
+        string $chat_id,
+        string $title,
+        string $description,
+        string $payload,
+        string $provider_token,
+        string $start_parameter,
+        string $currency,
+        array $prices,
+        string $provider_data = null,
+        string $photo_url = null,
+        int $photo_size = null,
+        int $photo_width = null,
+        int $photo_height = null,
+        bool $need_name = false,
+        bool $need_phone_number = false,
+        bool $need_email = false,
+        bool $need_shipping_address = false,
+        bool $send_phone_number_to_provider = false,
+        bool $send_email_to_provider = false,
+        bool $is_flexible = false,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        InlineKeyboardMarkup $reply_markup = null
+    ) {
         $this->chat_id = $chat_id;
         $this->title = $title;
         $this->description = $description;

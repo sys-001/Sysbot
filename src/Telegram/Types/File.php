@@ -31,7 +31,9 @@ class File
      */
     public static function parseFile(?\stdClass $file): ?self
     {
-        if (is_null($file)) return null;
+        if (is_null($file)) {
+            return null;
+        }
         return (new self())
             ->setFileId($file->file_id ?? null)
             ->setFileSize($file->file_size ?? null)

@@ -90,9 +90,22 @@ class SendAudio implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param InlineKeyboardMarkup|null $reply_markup
      */
-    function __construct(string $chat_id, InputFile $audio, string $caption = null, string $parse_mode = null, int $duration = null, string $performer = null, string $title = null, InputFile $thumb = null, bool $disable_notification = false, int $reply_to_message_id = null, InlineKeyboardMarkup $reply_markup = null)
-    {
-        if ($audio->is_local or $thumb->is_local) $this->multipart = true;
+    function __construct(
+        string $chat_id,
+        InputFile $audio,
+        string $caption = null,
+        string $parse_mode = null,
+        int $duration = null,
+        string $performer = null,
+        string $title = null,
+        InputFile $thumb = null,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        InlineKeyboardMarkup $reply_markup = null
+    ) {
+        if ($audio->is_local or $thumb->is_local) {
+            $this->multipart = true;
+        }
         $this->chat_id = $chat_id;
         $this->audio = $audio->input_file;
         $this->caption = $caption;

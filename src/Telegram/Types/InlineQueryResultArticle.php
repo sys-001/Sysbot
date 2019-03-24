@@ -51,7 +51,9 @@ class InlineQueryResultArticle extends InlineQueryResult
      */
     public static function parseInlineQueryResult(?\stdClass $inline_query_result_article): ?InlineQueryResultInterface
     {
-        if (is_null($inline_query_result_article)) return null;
+        if (is_null($inline_query_result_article)) {
+            return null;
+        }
         return (new self())
             ->setTitle($inline_query_result_article->title ?? null)
             ->setInputMessageContent(InputMessageContent::parseInputMessageContent($inline_query_result_article->input_message_content ?? null))

@@ -67,8 +67,15 @@ class RestrictChatMember implements MethodInterface
      * @param bool $can_send_other_messages
      * @param bool $can_add_web_page_previews
      */
-    function __construct(string $chat_id, int $user_id, int $until_date = null, bool $can_send_messages = false, bool $can_send_media_messages = false, bool $can_send_other_messages = false, bool $can_add_web_page_previews = false)
-    {
+    function __construct(
+        string $chat_id,
+        int $user_id,
+        int $until_date = null,
+        bool $can_send_messages = false,
+        bool $can_send_media_messages = false,
+        bool $can_send_other_messages = false,
+        bool $can_add_web_page_previews = false
+    ) {
         $this->chat_id = $chat_id;
         $this->user_id = $user_id;
         $this->until_date = $until_date;

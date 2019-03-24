@@ -70,7 +70,9 @@ class Chat
      */
     public static function parseChat(?\stdClass $chat): ?self
     {
-        if (is_null($chat)) return null;
+        if (is_null($chat)) {
+            return null;
+        }
         return (new self())
             ->setId($chat->id ?? null)
             ->setType($chat->type ?? null)

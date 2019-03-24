@@ -27,10 +27,16 @@ class Trigger
     function __construct(string $command, bool $strict_starting = true, bool $strict_ending = true)
     {
         $command = preg_quote($command, '/');
-        if ($strict_starting) $command = sprintf('^%s', $command);
-        if ($strict_ending) $command = sprintf('%s$', $command);
+        if ($strict_starting) {
+            $command = sprintf('^%s', $command);
+        }
+        if ($strict_ending) {
+            $command = sprintf('%s$', $command);
+        }
         $regex = sprintf('/%s/', $command);
-        if (false === @preg_match($regex, null)) throw new EventException('Invalid command provided');
+        if (false === @preg_match($regex, null)) {
+            throw new EventException('Invalid command provided');
+        }
         $this->regex = $regex;
     }
 
@@ -60,7 +66,9 @@ class Trigger
      */
     public function setRegex(string $regex): self
     {
-        if (false === @preg_match($regex, null)) throw new EventException('Invalid regex provided');
+        if (false === @preg_match($regex, null)) {
+            throw new EventException('Invalid regex provided');
+        }
         $this->regex = $regex;
         return $this;
     }

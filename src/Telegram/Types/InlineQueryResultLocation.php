@@ -49,9 +49,11 @@ class InlineQueryResultLocation extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_location
      * @return null|InlineQueryResultLocation
      */
-    public static function parseInlineQueryResultLocation(?\stdClass $inline_query_result_location): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_location)) return null;
+    public static function parseInlineQueryResultLocation(?\stdClass $inline_query_result_location
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_location)) {
+            return null;
+        }
         return (new self())
             ->setLatitude($inline_query_result_location->latitude ?? null)
             ->setLongitude($inline_query_result_location->longitude ?? null)

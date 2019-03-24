@@ -47,7 +47,9 @@ class SuccessfulPayment
      */
     public static function parseSuccessfulPayment(?\stdClass $successful_payment): ?self
     {
-        if (is_null($successful_payment)) return null;
+        if (is_null($successful_payment)) {
+            return null;
+        }
         return (new self())
             ->setCurrency($successful_payment->currency ?? null)
             ->setTotalAmount($successful_payment->total_amount ?? null)

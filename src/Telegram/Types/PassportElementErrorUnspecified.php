@@ -21,9 +21,11 @@ class PassportElementErrorUnspecified extends PassportElementError
      * @param null|\stdClass $passport_element_error_unspecified
      * @return null|PassportElementErrorUnspecified
      */
-    public static function parsePassportElementError(?\stdClass $passport_element_error_unspecified): ?PassportElementErrorInterface
-    {
-        if (is_null($passport_element_error_unspecified)) return null;
+    public static function parsePassportElementError(?\stdClass $passport_element_error_unspecified
+    ): ?PassportElementErrorInterface {
+        if (is_null($passport_element_error_unspecified)) {
+            return null;
+        }
         return (new self())
             ->setElementHash($passport_element_error_unspecified->element_hash ?? null)
             ->setSource($passport_element_error_unspecified->source ?? null)

@@ -54,9 +54,15 @@ class SetWebhook implements MethodInterface
      * @param int $max_connections
      * @param array $allowed_updates
      */
-    function __construct(string $url, InputFile $certificate = null, int $max_connections = 40, array $allowed_updates = [])
-    {
-        if ($certificate->is_local) $this->multipart = true;
+    function __construct(
+        string $url,
+        InputFile $certificate = null,
+        int $max_connections = 40,
+        array $allowed_updates = []
+    ) {
+        if ($certificate->is_local) {
+            $this->multipart = true;
+        }
         $this->url = $url;
         $this->certificate = $certificate->input_file;
         $this->max_connections = $max_connections;

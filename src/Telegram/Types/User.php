@@ -42,7 +42,9 @@ class User
      */
     public static function parseUser(?\stdClass $user): ?self
     {
-        if (is_null($user)) return null;
+        if (is_null($user)) {
+            return null;
+        }
         return (new self())
             ->setId($user->id ?? null)
             ->setIsBot($user->is_bot ?? null)
@@ -118,7 +120,9 @@ class User
      */
     public static function parseUsers(?array $users): ?array
     {
-        if (is_null($users)) return null;
+        if (is_null($users)) {
+            return null;
+        }
         return array_map(['self', 'parseUser'], $users);
     }
 

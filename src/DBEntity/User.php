@@ -10,6 +10,8 @@ class User
 {
     /** @Id @Column(type="integer") * */
     protected $id;
+    /** @Column(type="string", nullable=false) * */
+    protected $language_code;
     /** @Column(type="boolean") * */
     protected $blocked;
 
@@ -43,6 +45,22 @@ class User
     public function setBlocked($blocked)
     {
         $this->blocked = $blocked;
+    }
+
+    /**
+     * @return string
+     */
+    public function getLanguageCode()
+    {
+        return $this->language_code;
+    }
+
+    /**
+     * @param string $language_code
+     */
+    public function setLanguageCode($language_code)
+    {
+        $this->language_code = $language_code;
     }
 
 }

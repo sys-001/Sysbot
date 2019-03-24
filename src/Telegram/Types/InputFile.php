@@ -26,7 +26,9 @@ class InputFile
      */
     function __construct(string $input_file, bool $is_local = false)
     {
-        if ($is_local) $input_file = fopen($input_file, 'r');
+        if ($is_local) {
+            $input_file = fopen($input_file, 'r');
+        }
         $this->input_file = $input_file ?? null;
         $this->is_local = $is_local ?? false;
     }

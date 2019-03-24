@@ -55,12 +55,20 @@ class AnswerShippingQuery implements MethodInterface
      * @param string|null $error_message
      * @throws TelegramBotException
      */
-    function __construct(string $shipping_query_id, bool $ok, array $shipping_options = null, string $error_message = null)
-    {
+    function __construct(
+        string $shipping_query_id,
+        bool $ok,
+        array $shipping_options = null,
+        string $error_message = null
+    ) {
         if ($ok) {
-            if (empty($shipping_options)) throw new TelegramBotException("Shipping options required");
+            if (empty($shipping_options)) {
+                throw new TelegramBotException("Shipping options required");
+            }
         } else {
-            if (empty($error_message)) throw new TelegramBotException("Error message required");
+            if (empty($error_message)) {
+                throw new TelegramBotException("Error message required");
+            }
         }
         $this->shipping_query_id = $shipping_query_id;
         $this->ok = $ok;

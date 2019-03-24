@@ -52,7 +52,9 @@ class AnswerPreCheckoutQuery implements MethodInterface
      */
     function __construct(string $pre_checkout_query_id, bool $ok, string $error_message = null)
     {
-        if (!$ok and empty($error_message)) throw new TelegramBotException("Error message required");
+        if (!$ok and empty($error_message)) {
+            throw new TelegramBotException("Error message required");
+        }
         $this->pre_checkout_query_id = $pre_checkout_query_id;
         $this->ok = $ok;
         $this->error_message = $error_message;

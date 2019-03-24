@@ -31,7 +31,9 @@ class PassportFile
      */
     public static function parsePassportFile(?\stdClass $passport_file): ?self
     {
-        if (is_null($passport_file)) return null;
+        if (is_null($passport_file)) {
+            return null;
+        }
         return (new self())
             ->setFileId($passport_file->file_id ?? null)
             ->setFileSize($passport_file->file_size ?? null)
@@ -74,7 +76,9 @@ class PassportFile
      */
     public static function parsePassportFiles(?array $passport_files): ?array
     {
-        if (is_null($passport_files)) return null;
+        if (is_null($passport_files)) {
+            return null;
+        }
         return array_map(['self', 'parsePassportFile'], $passport_files);
     }
 }

@@ -74,8 +74,16 @@ class SendContact implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param ReplyMarkupInterface|null $reply_markup
      */
-    function __construct(string $chat_id, string $phone_number, string $first_name, string $last_name = null, string $vcard = null, bool $disable_notification = false, int $reply_to_message_id = null, ReplyMarkupInterface $reply_markup = null)
-    {
+    function __construct(
+        string $chat_id,
+        string $phone_number,
+        string $first_name,
+        string $last_name = null,
+        string $vcard = null,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        ReplyMarkupInterface $reply_markup = null
+    ) {
         $this->chat_id = $chat_id;
         $this->phone_number = $phone_number;
         $this->first_name = $first_name;

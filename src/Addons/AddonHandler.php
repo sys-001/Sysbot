@@ -20,7 +20,9 @@ class AddonHandler
      */
     function __construct()
     {
-        if (extension_loaded("redis")) $this->addons[] = new AntifloodAddon();
+        if (extension_loaded("redis")) {
+            $this->addons[] = new AntifloodAddon();
+        }
     }
 
     /**

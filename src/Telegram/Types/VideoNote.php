@@ -39,7 +39,9 @@ class VideoNote
      */
     public static function parseVideoNote(?\stdClass $video_note): ?self
     {
-        if (is_null($video_note)) return null;
+        if (is_null($video_note)) {
+            return null;
+        }
         return (new self())
             ->setFileId($video_note->file_id ?? null)
             ->setLength($video_note->length ?? null)

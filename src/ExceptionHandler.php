@@ -55,7 +55,8 @@ class ExceptionHandler
         $trace_call .= $trace[0]['function'];
         $trace_params = json_encode($trace[0]['args'] ?? [], JSON_UNESCAPED_SLASHES);
         $log_message = sprintf("ExceptionHandler: '%s' with message '%s' occurred in '%s' (line %d) @ %s (args: '%s')",
-            $type, $throwable->getMessage(), $trace[0]['file'] ?? '', $trace[0]['line'] ?? '', $trace_call, $trace_params);
+            $type, $throwable->getMessage(), $trace[0]['file'] ?? '', $trace[0]['line'] ?? '', $trace_call,
+            $trace_params);
         $this->logger->log($log_message);
         return true;
     }

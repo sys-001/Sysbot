@@ -27,7 +27,9 @@ class Location
      */
     public static function parseLocation(?\stdClass $location): ?self
     {
-        if (is_null($location)) return null;
+        if (is_null($location)) {
+            return null;
+        }
         return (new self())
             ->setLongitude($location->longitude ?? null)
             ->setLatitude($location->latitude ?? null);

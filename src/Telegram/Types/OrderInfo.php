@@ -35,7 +35,9 @@ class OrderInfo
      */
     public static function parseOrderInfo(?\stdClass $order_info): ?self
     {
-        if (is_null($order_info)) return null;
+        if (is_null($order_info)) {
+            return null;
+        }
         return (new self())
             ->setName($order_info->name ?? null)
             ->setPhoneNumber($order_info->phone_number ?? null)

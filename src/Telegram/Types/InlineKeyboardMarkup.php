@@ -23,7 +23,9 @@ class InlineKeyboardMarkup implements ReplyMarkupInterface
      */
     public static function parseInlineKeyboardMarkup(?\stdClass $inline_keyboard_markup): ?self
     {
-        if (is_null($inline_keyboard_markup)) return null;
+        if (is_null($inline_keyboard_markup)) {
+            return null;
+        }
         return (new self())
             ->setInlineKeyboard($inline_keyboard_markup->inline_keyboard ?? null);
     }

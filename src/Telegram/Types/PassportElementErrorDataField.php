@@ -25,9 +25,11 @@ class PassportElementErrorDataField extends PassportElementError
      * @param null|\stdClass $passport_element_error_data_field
      * @return null|PassportElementErrorDataField
      */
-    public static function parsePassportElementError(?\stdClass $passport_element_error_data_field): ?PassportElementErrorInterface
-    {
-        if (is_null($passport_element_error_data_field)) return null;
+    public static function parsePassportElementError(?\stdClass $passport_element_error_data_field
+    ): ?PassportElementErrorInterface {
+        if (is_null($passport_element_error_data_field)) {
+            return null;
+        }
         return (new self())
             ->setFieldName($passport_element_error_data_field->field_name ?? null)
             ->setDataHash($passport_element_error_data_field->data_hash ?? null)

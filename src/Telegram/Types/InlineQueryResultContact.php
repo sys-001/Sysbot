@@ -49,9 +49,11 @@ class InlineQueryResultContact extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_contact
      * @return null|InlineQueryResultContact
      */
-    public static function parseInlineQueryResultContact(?\stdClass $inline_query_result_contact): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_contact)) return null;
+    public static function parseInlineQueryResultContact(?\stdClass $inline_query_result_contact
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_contact)) {
+            return null;
+        }
         return (new self())
             ->setPhoneNumber($inline_query_result_contact->phone_number ?? null)
             ->setFirstName($inline_query_result_contact->first_name ?? null)

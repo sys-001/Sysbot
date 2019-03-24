@@ -41,9 +41,11 @@ class InlineQueryResultCachedDocument extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_document
      * @return null|InlineQueryResultCachedDocument
      */
-    public static function parseInlineQueryResultCachedDocument(?\stdClass $inline_query_result_cached_document): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_document)) return null;
+    public static function parseInlineQueryResultCachedDocument(?\stdClass $inline_query_result_cached_document
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_document)) {
+            return null;
+        }
         return (new self())
             ->setTitle($inline_query_result_cached_document->title ?? null)
             ->setDocumentFileId($inline_query_result_cached_document->document_file_id ?? null)

@@ -57,8 +57,13 @@ class AnswerCallbackQuery implements MethodInterface
      * @param string|null $url
      * @param int $cache_time
      */
-    function __construct(string $callback_query_id, string $text = null, bool $show_alert = false, string $url = null, int $cache_time = 0)
-    {
+    function __construct(
+        string $callback_query_id,
+        string $text = null,
+        bool $show_alert = false,
+        string $url = null,
+        int $cache_time = 0
+    ) {
         $this->callback_query_id = $callback_query_id;
         $this->text = $text;
         $this->show_alert = $show_alert;

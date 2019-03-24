@@ -84,8 +84,18 @@ class SendVenue implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param ReplyMarkupInterface|null $reply_markup
      */
-    function __construct(string $chat_id, float $latitude, float $longitude, string $title, string $address, string $foursquare_id = null, string $foursquare_type = null, bool $disable_notification = false, int $reply_to_message_id = null, ReplyMarkupInterface $reply_markup = null)
-    {
+    function __construct(
+        string $chat_id,
+        float $latitude,
+        float $longitude,
+        string $title,
+        string $address,
+        string $foursquare_id = null,
+        string $foursquare_type = null,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        ReplyMarkupInterface $reply_markup = null
+    ) {
         $this->chat_id = $chat_id;
         $this->latitude = $latitude;
         $this->longitude = $longitude;

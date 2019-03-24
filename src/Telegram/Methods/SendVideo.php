@@ -95,9 +95,23 @@ class SendVideo implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param ReplyMarkupInterface|null $reply_markup
      */
-    function __construct(string $chat_id, InputFile $video, int $duration = null, int $width = null, int $height = null, InputFile $thumb = null, string $caption = null, string $parse_mode = null, bool $supports_streaming = false, bool $disable_notification = false, int $reply_to_message_id = null, ReplyMarkupInterface $reply_markup = null)
-    {
-        if ($video->is_local or $thumb->is_local) $this->multipart = true;
+    function __construct(
+        string $chat_id,
+        InputFile $video,
+        int $duration = null,
+        int $width = null,
+        int $height = null,
+        InputFile $thumb = null,
+        string $caption = null,
+        string $parse_mode = null,
+        bool $supports_streaming = false,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        ReplyMarkupInterface $reply_markup = null
+    ) {
+        if ($video->is_local or $thumb->is_local) {
+            $this->multipart = true;
+        }
         $this->chat_id = $chat_id;
         $this->video = $video->input_file;
         $this->duration = $duration;

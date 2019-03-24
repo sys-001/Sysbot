@@ -35,7 +35,9 @@ class InputMediaPhoto extends InputMedia
      */
     public static function parseInputMedia(?\stdClass $input_media_photo): ?InputMediaInterface
     {
-        if (is_null($input_media_photo)) return null;
+        if (is_null($input_media_photo)) {
+            return null;
+        }
         return (new self())
             ->setType($input_media_photo->type ?? null)
             ->setMedia(InputFile::parseInputFile($input_media_photo->media ?? null))

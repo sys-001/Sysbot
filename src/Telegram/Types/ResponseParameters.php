@@ -27,7 +27,9 @@ class ResponseParameters
      */
     public static function parseResponseParameters(?\stdClass $response_parameters): ?self
     {
-        if (is_null($response_parameters)) return null;
+        if (is_null($response_parameters)) {
+            return null;
+        }
         return (new self())
             ->setMigrateToChatId($response_parameters->migrate_to_chat_id ?? null)
             ->setRetryAfter($response_parameters->retry_after ?? null);

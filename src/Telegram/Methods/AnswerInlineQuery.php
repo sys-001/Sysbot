@@ -67,8 +67,15 @@ class AnswerInlineQuery implements MethodInterface
      * @param string|null $switch_pm_text
      * @param string|null $switch_pm_parameter
      */
-    function __construct(string $inline_query_id, array $results, int $cache_time = 300, bool $is_personal = false, string $next_offset = null, string $switch_pm_text = null, string $switch_pm_parameter = null)
-    {
+    function __construct(
+        string $inline_query_id,
+        array $results,
+        int $cache_time = 300,
+        bool $is_personal = false,
+        string $next_offset = null,
+        string $switch_pm_text = null,
+        string $switch_pm_parameter = null
+    ) {
         $this->inline_query_id = $inline_query_id;
         $this->results = $results;
         $this->cache_time = $cache_time;

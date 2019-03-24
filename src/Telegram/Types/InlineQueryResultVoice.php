@@ -41,9 +41,11 @@ class InlineQueryResultVoice extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_voice
      * @return null|InlineQueryResultVoice
      */
-    public static function parseInlineQueryResultVoice(?\stdClass $inline_query_result_voice): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_voice)) return null;
+    public static function parseInlineQueryResultVoice(?\stdClass $inline_query_result_voice
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_voice)) {
+            return null;
+        }
         return (new self())
             ->setVoiceUrl($inline_query_result_voice->voice_url ?? null)
             ->setTitle($inline_query_result_voice->title ?? null)

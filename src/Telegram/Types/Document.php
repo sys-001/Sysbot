@@ -39,7 +39,9 @@ class Document
      */
     public static function parseDocument(?\stdClass $document): ?self
     {
-        if (is_null($document)) return null;
+        if (is_null($document)) {
+            return null;
+        }
         return (new self())
             ->setFileId($document->file_id ?? null)
             ->setThumb(PhotoSize::parsePhotoSize($document->thumb ?? null))

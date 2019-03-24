@@ -57,9 +57,11 @@ class InlineQueryResultVenue extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_venue
      * @return null|InlineQueryResultVenue
      */
-    public static function parseInlineQueryResultVenue(?\stdClass $inline_query_result_venue): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_venue)) return null;
+    public static function parseInlineQueryResultVenue(?\stdClass $inline_query_result_venue
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_venue)) {
+            return null;
+        }
         return (new self())
             ->setLatitude($inline_query_result_venue->latitude ?? null)
             ->setLongitude($inline_query_result_venue->longitude ?? null)

@@ -41,9 +41,11 @@ class InlineQueryResultCachedPhoto extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_photo
      * @return null|InlineQueryResultCachedPhoto
      */
-    public static function parseInlineQueryResultCachedPhoto(?\stdClass $inline_query_result_cached_photo): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_photo)) return null;
+    public static function parseInlineQueryResultCachedPhoto(?\stdClass $inline_query_result_cached_photo
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_photo)) {
+            return null;
+        }
         return (new self())
             ->setPhotoFileId($inline_query_result_cached_photo->photo_file_id ?? null)
             ->setTitle($inline_query_result_cached_photo->title ?? null)

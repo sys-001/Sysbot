@@ -61,9 +61,11 @@ class InlineQueryResultVideo extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_video
      * @return null|InlineQueryResultVideo
      */
-    public static function parseInlineQueryResultVideo(?\stdClass $inline_query_result_video): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_video)) return null;
+    public static function parseInlineQueryResultVideo(?\stdClass $inline_query_result_video
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_video)) {
+            return null;
+        }
         return (new self())
             ->setVideoUrl($inline_query_result_video->video_url ?? null)
             ->setMimeType($inline_query_result_video->mime_type ?? null)

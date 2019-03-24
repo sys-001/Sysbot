@@ -35,7 +35,9 @@ class Voice
      */
     public static function parseVoice(?\stdClass $voice): ?self
     {
-        if (is_null($voice)) return null;
+        if (is_null($voice)) {
+            return null;
+        }
         return (new self())
             ->setFileId($voice->file_id ?? null)
             ->setDuration($voice->duration ?? null)

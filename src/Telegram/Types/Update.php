@@ -64,7 +64,9 @@ class Update
      */
     public static function parseUpdate(?\stdClass $update): ?self
     {
-        if (is_null($update)) return null;
+        if (is_null($update)) {
+            return null;
+        }
         return (new self())
             ->setUpdateId($update->update_id ?? null)
             ->setMessage(Message::parseMessage($update->message ?? null))
@@ -213,7 +215,9 @@ class Update
      */
     public static function parseUpdates(?array $updates): ?array
     {
-        if (is_null($updates)) return null;
+        if (is_null($updates)) {
+            return null;
+        }
         return array_map(['self', 'parseUpdate'], $updates);
     }
 

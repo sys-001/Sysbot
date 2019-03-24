@@ -47,7 +47,9 @@ class Video
      */
     public static function parseVideo(?\stdClass $video): ?self
     {
-        if (is_null($video)) return null;
+        if (is_null($video)) {
+            return null;
+        }
         return (new self())
             ->setFileId($video->file_id ?? null)
             ->setWidth($video->width ?? null)

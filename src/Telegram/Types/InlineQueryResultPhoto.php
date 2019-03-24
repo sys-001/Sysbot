@@ -53,9 +53,11 @@ class InlineQueryResultPhoto extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_photo
      * @return null|InlineQueryResultPhoto
      */
-    public static function parseInlineQueryResultPhoto(?\stdClass $inline_query_result_photo): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_photo)) return null;
+    public static function parseInlineQueryResultPhoto(?\stdClass $inline_query_result_photo
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_photo)) {
+            return null;
+        }
         return (new self())
             ->setPhotoUrl($inline_query_result_photo->photo_url ?? null)
             ->setThumbUrl($inline_query_result_photo->thumb_url ?? null)

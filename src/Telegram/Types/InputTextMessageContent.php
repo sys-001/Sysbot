@@ -29,9 +29,11 @@ class InputTextMessageContent extends InputMessageContent
      * @param null|\stdClass $input_text_message_content
      * @return null|InputTextMessageContent
      */
-    public static function parseInputMessageContent(?\stdClass $input_text_message_content): ?InputMessageContentInterface
-    {
-        if (is_null($input_text_message_content)) return null;
+    public static function parseInputMessageContent(?\stdClass $input_text_message_content
+    ): ?InputMessageContentInterface {
+        if (is_null($input_text_message_content)) {
+            return null;
+        }
         return (new self())
             ->setMessageText($input_text_message_content->message_text ?? null)
             ->setParseMode($input_text_message_content->parse_mode ?? null)

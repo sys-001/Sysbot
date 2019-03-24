@@ -37,8 +37,7 @@ class Settings
         Sections\TelegramSection $telegram_section,
         Sections\MaintenanceSection $maintenance_section,
         Sections\AntifloodSection $antiflood_section
-    )
-    {
+    ) {
         $this->general_section = $general_section;
         $this->telegram_section = $telegram_section;
         $this->maintenance_section = $maintenance_section;

@@ -39,7 +39,9 @@ class InlineQuery
      */
     public static function parseInlineQuery(?\stdClass $inline_query): ?self
     {
-        if (is_null($inline_query)) return null;
+        if (is_null($inline_query)) {
+            return null;
+        }
         return (new self())
             ->setId($inline_query->id ?? null)
             ->setFrom(User::parseUser($inline_query->from ?? null))

@@ -60,9 +60,16 @@ class AddStickerToSet implements MethodInterface
      * @param string $emojis
      * @param MaskPosition|null $mask_position
      */
-    function __construct(int $user_id, string $name, InputFile $png_sticker, string $emojis, MaskPosition $mask_position = null)
-    {
-        if ($png_sticker->is_local) $this->multipart = true;
+    function __construct(
+        int $user_id,
+        string $name,
+        InputFile $png_sticker,
+        string $emojis,
+        MaskPosition $mask_position = null
+    ) {
+        if ($png_sticker->is_local) {
+            $this->multipart = true;
+        }
         $this->user_id = $user_id;
         $this->name = $name;
         $this->png_sticker = $png_sticker->input_file;

@@ -46,7 +46,9 @@ class UploadStickerFile implements MethodInterface
      */
     function __construct(int $user_id, InputFile $png_sticker)
     {
-        if ($png_sticker->is_local) $this->multipart = true;
+        if ($png_sticker->is_local) {
+            $this->multipart = true;
+        }
         $this->user_id = $user_id;
         $this->png_sticker = $png_sticker->input_file;
     }

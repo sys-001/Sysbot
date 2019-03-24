@@ -41,9 +41,11 @@ class InlineQueryResultCachedVideo extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_video
      * @return null|InlineQueryResultCachedVideo
      */
-    public static function parseInlineQueryResultCachedVideo(?\stdClass $inline_query_result_cached_video): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_video)) return null;
+    public static function parseInlineQueryResultCachedVideo(?\stdClass $inline_query_result_cached_video
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_video)) {
+            return null;
+        }
         return (new self())
             ->setVideoFileId($inline_query_result_cached_video->video_file_id ?? null)
             ->setTitle($inline_query_result_cached_video->title ?? null)

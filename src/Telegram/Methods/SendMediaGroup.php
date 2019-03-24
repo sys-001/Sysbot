@@ -52,11 +52,17 @@ class SendMediaGroup implements MethodInterface
      * @param bool $disable_notification
      * @param int|null $reply_to_message_id
      */
-    function __construct(string $chat_id, array $media, bool $disable_notification = false, int $reply_to_message_id = null)
-    {
+    function __construct(
+        string $chat_id,
+        array $media,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null
+    ) {
         $this->chat_id = $chat_id;
         foreach ($media as $media_file) {
-            if ($media_file->is_multipart) $this->multipart = true;
+            if ($media_file->is_multipart) {
+                $this->multipart = true;
+            }
         }
         $this->media = $media;
         $this->disable_notification = $disable_notification;

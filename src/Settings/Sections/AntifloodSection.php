@@ -43,8 +43,7 @@ class AntifloodSection implements SectionInterface
         int $messages_number,
         int $ban_seconds,
         string $ban_message
-    )
-    {
+    ) {
         $this->enabled = $enabled;
         $this->messages_seconds = $messages_seconds;
         $this->messages_number = $messages_number;

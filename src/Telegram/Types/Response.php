@@ -32,7 +32,9 @@ class Response
      */
     public static function parseResponse(?\stdClass $response): ?self
     {
-        if (is_null($response)) return null;
+        if (is_null($response)) {
+            return null;
+        }
         $parsed_response = (new self())
             ->setOk($response->ok ?? null)
             ->setErrorCode($response->error_code ?? null)
@@ -43,7 +45,8 @@ class Response
             $parsed_response->setResult(ResponseParameters::parseResponseParameters($response->result ?? null));
         } elseif (!empty($response->result_type)) {
             $result_class = sprintf('TelegramBot\Telegram\Types\%s', $response->result_type->class);
-            $parsed_response->setResult(call_user_func([$result_class, $response->result_type->method], $response->result ?? null));
+            $parsed_response->setResult(call_user_func([$result_class, $response->result_type->method],
+                $response->result ?? null));
         } else {
             $parsed_response->setResult($response->result ?? null);
         }

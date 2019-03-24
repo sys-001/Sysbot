@@ -26,30 +26,53 @@ trait HashUtil
      * @return string
      * @throws UtilException
      */
-    public static function encodeFileIdInfo(string $type, int $dc_id, int $id, int $access_hash, int $volume_id = null, int $secret = null, int $local_id = null)
-    {
+    public static function encodeFileIdInfo(
+        string $type,
+        int $dc_id,
+        int $id,
+        int $access_hash,
+        int $volume_id = null,
+        int $secret = null,
+        int $local_id = null
+    ) {
         switch ($type) {
             case 'Thumb':
                 $file_type = '0';
             case 'Photo':
-                if (empty($file_type)) $file_type = '2';
-                if (empty($volume_id) or empty($secret) or empty($local_id)) throw new UtilException("Missing required parameters for file type");
+                if (empty($file_type)) {
+                    $file_type = '2';
+                }
+                if (empty($volume_id) or empty($secret) or empty($local_id)) {
+                    throw new UtilException("Missing required parameters for file type");
+                }
                 $file_id = pack('VVqqqqV', $file_type, $dc_id, $id, $access_hash, $volume_id, $secret, $local_id);
                 break;
             case 'Voice':
                 $file_type = '3';
             case 'Video':
-                if (empty($file_type)) $file_type = '4';
+                if (empty($file_type)) {
+                    $file_type = '4';
+                }
             case 'Document':
-                if (empty($file_type)) $file_type = '5';
+                if (empty($file_type)) {
+                    $file_type = '5';
+                }
             case 'Sticker':
-                if (empty($file_type)) $file_type = '8';
+                if (empty($file_type)) {
+                    $file_type = '8';
+                }
             case 'Audio':
-                if (empty($file_type)) $file_type = '9';
+                if (empty($file_type)) {
+                    $file_type = '9';
+                }
             case 'Animation':
-                if (empty($file_type)) $file_type = 'A';
+                if (empty($file_type)) {
+                    $file_type = 'A';
+                }
             case 'VideoNote':
-                if (empty($file_type)) $file_type = 'D';
+                if (empty($file_type)) {
+                    $file_type = 'D';
+                }
                 $file_id = pack('VVqq', $file_type, $dc_id, $id, $access_hash);
                 break;
             default:
@@ -103,23 +126,37 @@ trait HashUtil
             case '0':
                 $type = 'Thumb';
             case '2':
-                if (empty($type)) $type = 'Photo';
+                if (empty($type)) {
+                    $type = 'Photo';
+                }
                 $decrypted_info = unpack('Vtype/Vdc_id/qid/qaccess_hash/qvolume_id/qsecret/Vlocal_id', $file_info);
                 break;
             case '3':
                 $type = 'Voice';
             case '4':
-                if (empty($type)) $type = 'Video';
+                if (empty($type)) {
+                    $type = 'Video';
+                }
             case '5':
-                if (empty($type)) $type = 'Document';
+                if (empty($type)) {
+                    $type = 'Document';
+                }
             case '8':
-                if (empty($type)) $type = 'Sticker';
+                if (empty($type)) {
+                    $type = 'Sticker';
+                }
             case '9':
-                if (empty($type)) $type = 'Audio';
+                if (empty($type)) {
+                    $type = 'Audio';
+                }
             case 'A':
-                if (empty($type)) $type = 'Animation';
+                if (empty($type)) {
+                    $type = 'Animation';
+                }
             case 'D':
-                if (empty($type)) $type = 'VideoNote';
+                if (empty($type)) {
+                    $type = 'VideoNote';
+                }
                 $decrypted_info = unpack('Vtype/Vdc_id/qid/qaccess_hash', $file_info);
                 break;
             default:
@@ -208,8 +245,12 @@ trait HashUtil
      * @param int $access_hash
      * @return string
      */
-    public static function encodeInlineMessageIdInfo(int $dc_id, int $message_id, int $chat_id, int $access_hash): string
-    {
+    public static function encodeInlineMessageIdInfo(
+        int $dc_id,
+        int $message_id,
+        int $chat_id,
+        int $access_hash
+    ): string {
         if ($chat_id < 0) {
             $chat_id = substr($chat_id, 4);
             $chat_id = (int)$chat_id * -1;

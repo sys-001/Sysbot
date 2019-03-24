@@ -51,7 +51,9 @@ class Sticker
      */
     public static function parseSticker(?\stdClass $sticker): ?self
     {
-        if (is_null($sticker)) return null;
+        if (is_null($sticker)) {
+            return null;
+        }
         return (new self())
             ->setFileId($sticker->file_id ?? null)
             ->setWidth($sticker->width ?? null)
@@ -149,7 +151,9 @@ class Sticker
      */
     public static function parseStickers(?array $stickers): ?array
     {
-        if (is_null($stickers)) return null;
+        if (is_null($stickers)) {
+            return null;
+        }
         return array_map(['self', 'parseSticker'], $stickers);
     }
 

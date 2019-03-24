@@ -2,8 +2,10 @@
 
 if (!isset($this)) exit;
 if (true == $_GET['flush_peers']) {
-    $this->logger->log(sprintf("TelegramBot: ATTENTION! Peers DB has been reset by %s!", $_SERVER['REMOTE_ADDR'] ?? "NULL"));
+    $this->logger->log(sprintf("TelegramBot: ATTENTION! Peers DB has been reset by '%s'!", $_SERVER['REMOTE_ADDR'] ?? "NULL"));
     $this->resetPeers();
+    echo "Peers DB successfully reset.";
+    exit;
 }
 $bot_info = $this->getMe()->result;
 $webhook_info = $this->getWebhookInfo()->result;

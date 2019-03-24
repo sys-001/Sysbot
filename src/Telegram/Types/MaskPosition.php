@@ -35,7 +35,9 @@ class MaskPosition
      */
     public static function parseMaskPosition(?\stdClass $mask_position): ?self
     {
-        if (is_null($mask_position)) return null;
+        if (is_null($mask_position)) {
+            return null;
+        }
         return (new self())
             ->setPoint($mask_position->point ?? null)
             ->setXShift($mask_position->x_shift ?? null)

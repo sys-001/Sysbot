@@ -35,7 +35,9 @@ class PhotoSize
      */
     public static function parsePhotoSize(?\stdClass $photo_size): ?self
     {
-        if (is_null($photo_size)) return null;
+        if (is_null($photo_size)) {
+            return null;
+        }
         return (new self())
             ->setFileId($photo_size->file_id ?? null)
             ->setWidth($photo_size->width ?? null)
@@ -89,7 +91,9 @@ class PhotoSize
      */
     public static function parsePhotoSizes(?array $photo_sizes): ?array
     {
-        if (is_null($photo_sizes)) return null;
+        if (is_null($photo_sizes)) {
+            return null;
+        }
         return array_map(['self', 'parsePhotoSize'], $photo_sizes);
     }
 

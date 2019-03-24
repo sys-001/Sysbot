@@ -39,7 +39,9 @@ class InputMediaDocument extends InputMedia
      */
     public static function parseInputMedia(?\stdClass $input_media_document): ?InputMediaInterface
     {
-        if (is_null($input_media_document)) return null;
+        if (is_null($input_media_document)) {
+            return null;
+        }
         return (new self())
             ->setThumb($input_media_document->thumb ?? null)
             ->setType($input_media_document->type ?? null)

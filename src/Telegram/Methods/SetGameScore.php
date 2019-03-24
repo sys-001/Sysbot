@@ -67,8 +67,15 @@ class SetGameScore implements MethodInterface
      * @param bool $force
      * @param bool $disable_edit_message
      */
-    function __construct(int $user_id, int $score, ?string $chat_id, ?int $message_id, ?string $inline_message_id, bool $force = false, bool $disable_edit_message = false)
-    {
+    function __construct(
+        int $user_id,
+        int $score,
+        ?string $chat_id,
+        ?int $message_id,
+        ?string $inline_message_id,
+        bool $force = false,
+        bool $disable_edit_message = false
+    ) {
         $this->user_id = $user_id;
         $this->score = $score;
         $this->force = $force;

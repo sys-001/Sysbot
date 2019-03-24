@@ -39,7 +39,9 @@ class Contact
      */
     public static function parseContact(?\stdClass $contact): ?self
     {
-        if (is_null($contact)) return null;
+        if (is_null($contact)) {
+            return null;
+        }
         return (new self())
             ->setPhoneNumber($contact->phone_number ?? null)
             ->setFirstName($contact->first_name ?? null)

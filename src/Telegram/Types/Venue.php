@@ -39,7 +39,9 @@ class Venue
      */
     public static function parseVenue(?\stdClass $venue): ?self
     {
-        if (is_null($venue)) return null;
+        if (is_null($venue)) {
+            return null;
+        }
         return (new self())
             ->setLocation(Location::parseLocation($venue->location ?? null))
             ->setTitle($venue->title ?? null)

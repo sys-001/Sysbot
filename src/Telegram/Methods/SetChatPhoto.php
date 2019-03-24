@@ -46,7 +46,9 @@ class SetChatPhoto implements MethodInterface
      */
     function __construct(string $chat_id, InputFile $photo)
     {
-        if ($photo->is_local) $this->multipart = true;
+        if ($photo->is_local) {
+            $this->multipart = true;
+        }
         $this->chat_id = $chat_id;
         $this->photo = $photo->input_file;
     }

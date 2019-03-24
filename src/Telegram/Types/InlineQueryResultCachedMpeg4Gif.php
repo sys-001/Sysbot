@@ -37,9 +37,11 @@ class InlineQueryResultCachedMpeg4Gif extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_mpeg_4_gif
      * @return null|InlineQueryResultCachedMpeg4Gif
      */
-    public static function parseInlineQueryResultCachedMpeg4Gif(?\stdClass $inline_query_result_cached_mpeg_4_gif): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_mpeg_4_gif)) return null;
+    public static function parseInlineQueryResultCachedMpeg4Gif(?\stdClass $inline_query_result_cached_mpeg_4_gif
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_mpeg_4_gif)) {
+            return null;
+        }
         return (new self())
             ->setMpeg4FileId($inline_query_result_cached_mpeg_4_gif->mpeg4_file_id ?? null)
             ->setTitle($inline_query_result_cached_mpeg_4_gif->title ?? null)

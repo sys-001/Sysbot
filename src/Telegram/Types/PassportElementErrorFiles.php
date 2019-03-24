@@ -20,9 +20,11 @@ class PassportElementErrorFiles extends PassportElementError
      * @param null|\stdClass $passport_element_error_files
      * @return null|PassportElementErrorFiles
      */
-    public static function parsePassportElementError(?\stdClass $passport_element_error_files): ?PassportElementErrorInterface
-    {
-        if (is_null($passport_element_error_files)) return null;
+    public static function parsePassportElementError(?\stdClass $passport_element_error_files
+    ): ?PassportElementErrorInterface {
+        if (is_null($passport_element_error_files)) {
+            return null;
+        }
         return (new self())
             ->setFileHashes($passport_element_error_files->file_hashes ?? null)
             ->setSource($passport_element_error_files->source ?? null)

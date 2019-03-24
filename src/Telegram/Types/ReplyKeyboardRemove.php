@@ -27,7 +27,9 @@ class ReplyKeyboardRemove implements ReplyMarkupInterface
      */
     public static function parseReplyKeyboardRemove(?\stdClass $reply_keyboard_remove): ?self
     {
-        if (is_null($reply_keyboard_remove)) return null;
+        if (is_null($reply_keyboard_remove)) {
+            return null;
+        }
         return (new self())
             ->setRemoveKeyboard($reply_keyboard_remove->remove_keyboard ?? true)
             ->setSelective($reply_keyboard_remove->selective ?? false);

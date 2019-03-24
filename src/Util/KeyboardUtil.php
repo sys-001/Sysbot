@@ -25,8 +25,11 @@ trait KeyboardUtil
      * @param bool $request_location
      * @return KeyboardButton
      */
-    public static function generateReplyKeyboardButton(string $text, bool $request_contact = false, bool $request_location = false): KeyboardButton
-    {
+    public static function generateReplyKeyboardButton(
+        string $text,
+        bool $request_contact = false,
+        bool $request_location = false
+    ): KeyboardButton {
         $raw_button = (object)[
             'text' => $text,
             'request_contact' => $request_contact,
@@ -73,8 +76,10 @@ trait KeyboardUtil
      * @param bool $selective
      * @return ReplyKeyboardRemove
      */
-    public static function generateReplyKeyboardRemove(bool $remove_keyboard = true, bool $selective = false): ReplyKeyboardRemove
-    {
+    public static function generateReplyKeyboardRemove(
+        bool $remove_keyboard = true,
+        bool $selective = false
+    ): ReplyKeyboardRemove {
         $raw_markup = (object)[
             'remove_keyboard' => $remove_keyboard,
             'selective' => $selective
@@ -103,8 +108,11 @@ trait KeyboardUtil
      * @return InlineKeyboardButton
      * @throws TelegramBotException
      */
-    public static function generateInlineKeyboardButton(string $text, string $callback_action, string $callback_content): InlineKeyboardButton
-    {
+    public static function generateInlineKeyboardButton(
+        string $text,
+        string $callback_action,
+        string $callback_content
+    ): InlineKeyboardButton {
         $allowed_actions = [
             'url',
             'callback_data',

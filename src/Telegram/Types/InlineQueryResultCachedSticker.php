@@ -24,9 +24,11 @@ class InlineQueryResultCachedSticker extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_sticker
      * @return null|InlineQueryResultCachedSticker
      */
-    public static function parseInlineQueryResultCachedSticker(?\stdClass $inline_query_result_cached_sticker): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_sticker)) return null;
+    public static function parseInlineQueryResultCachedSticker(?\stdClass $inline_query_result_cached_sticker
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_sticker)) {
+            return null;
+        }
         return (new self())
             ->setStickerFileId($inline_query_result_cached_sticker->sticker_file_id ?? null)
             ->setInputMessageContent(InputMessageContent::parseInputMessageContent($inline_query_result_cached_sticker->input_message_content ?? null))

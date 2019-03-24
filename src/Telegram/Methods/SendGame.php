@@ -59,8 +59,13 @@ class SendGame implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param InlineKeyboardMarkup|null $reply_markup
      */
-    function __construct(string $chat_id, string $game_short_name, bool $disable_notification = false, int $reply_to_message_id = null, InlineKeyboardMarkup $reply_markup = null)
-    {
+    function __construct(
+        string $chat_id,
+        string $game_short_name,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        InlineKeyboardMarkup $reply_markup = null
+    ) {
         $this->chat_id = $chat_id;
         $this->game_short_name = $game_short_name;
         $this->disable_notification = $disable_notification;

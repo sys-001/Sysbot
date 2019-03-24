@@ -83,7 +83,9 @@ class ChatMember
      */
     public static function parseChatMember(?\stdClass $chat_member): ?self
     {
-        if (is_null($chat_member)) return null;
+        if (is_null($chat_member)) {
+            return null;
+        }
         return (new self())
             ->setUser(User::parseUser($chat_member->user ?? null))
             ->setStatus($chat_member->status ?? null)

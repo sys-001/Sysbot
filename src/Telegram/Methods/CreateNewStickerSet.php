@@ -70,9 +70,18 @@ class CreateNewStickerSet implements MethodInterface
      * @param bool $contains_masks
      * @param MaskPosition|null $mask_position
      */
-    function __construct(int $user_id, string $name, string $title, InputFile $png_sticker, string $emojis, bool $contains_masks = false, MaskPosition $mask_position = null)
-    {
-        if ($png_sticker->is_local) $this->multipart = true;
+    function __construct(
+        int $user_id,
+        string $name,
+        string $title,
+        InputFile $png_sticker,
+        string $emojis,
+        bool $contains_masks = false,
+        MaskPosition $mask_position = null
+    ) {
+        if ($png_sticker->is_local) {
+            $this->multipart = true;
+        }
         $this->user_id = $user_id;
         $this->name = $name;
         $this->title = $title;

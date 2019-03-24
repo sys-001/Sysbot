@@ -27,7 +27,9 @@ class PassportData
      */
     public static function parsePassportData(?\stdClass $passport_data): ?self
     {
-        if (is_null($passport_data)) return null;
+        if (is_null($passport_data)) {
+            return null;
+        }
         return (new self())
             ->setData(EncryptedPassportElement::parseEncryptedPassportElements($passport_data->data ?? null))
             ->setCredentials(EncryptedCredentials::parseEncryptedCredentials($passport_data->credentials ?? null));

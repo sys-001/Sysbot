@@ -37,9 +37,11 @@ class InlineQueryResultCachedGif extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_gif
      * @return null|InlineQueryResultCachedGif
      */
-    public static function parseInlineQueryResultCachedGif(?\stdClass $inline_query_result_cached_gif): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_gif)) return null;
+    public static function parseInlineQueryResultCachedGif(?\stdClass $inline_query_result_cached_gif
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_gif)) {
+            return null;
+        }
         return (new self())
             ->setGifFileId($inline_query_result_cached_gif->gif_file_id ?? null)
             ->setTitle($inline_query_result_cached_gif->title ?? null)

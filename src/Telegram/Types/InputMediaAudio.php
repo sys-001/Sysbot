@@ -51,7 +51,9 @@ class InputMediaAudio extends InputMedia
      */
     public static function parseInputMedia(?\stdClass $input_media_audio): ?InputMediaInterface
     {
-        if (is_null($input_media_audio)) return null;
+        if (is_null($input_media_audio)) {
+            return null;
+        }
         return (new self())
             ->setThumb($input_media_audio->thumb ?? null)
             ->setDuration($input_media_audio->duration ?? null)

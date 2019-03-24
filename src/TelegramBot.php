@@ -4,15 +4,23 @@ namespace TelegramBot;
 
 use Doctrine\ORM\EntityManager;
 use GuzzleHttp\Client;
-use TelegramBot\{Event\DefaultEvent,
+use TelegramBot\{DBEntity\Chat,
+    DBEntity\User,
+    Event\CallbackQueryEvent,
+    Event\DefaultEvent,
     Event\EventHandler,
+    Event\MessageTextEvent,
     Event\Trigger,
+    Exception\EventException,
+    Exception\LocalizationProviderException,
     Exception\SettingsProviderException,
     Exception\TelegramBotException,
+    Localization\LocalizationProvider,
     Telegram\Methods,
     Telegram\Types,
     Telegram\Types\Response,
-    Telegram\Types\Update};
+    Telegram\Types\Update,
+    Util\KeyboardUtil};
 
 /**
  * Class TelegramBot
@@ -24,7 +32,7 @@ class TelegramBot
     /**
      *
      */
-    public const BOT_VERSION = "1.0.2";
+    public const BOT_VERSION = "1.0.3";
     /**
      *
      */
@@ -48,7 +56,7 @@ class TelegramBot
     /**
      * @var null|SettingsProvider
      */
-    private $provider = null;
+    private $settings_provider = null;
     /**
      * @var EntityManager|null
      */
@@ -81,6 +89,10 @@ class TelegramBot
      * @var null|\Closure
      */
     private $results_callback = null;
+    /**
+     * @var LocalizationProvider|null
+     */
+    private $localization_provider = null;
 
     /**
      * TelegramBot constructor.
@@ -89,26 +101,40 @@ class TelegramBot
      * @param string $settings_path
      * @param int $log_verbosity
      * @param string|null $log_path
+     * @param bool $force_log_output
+     * @throws EventException
+     * @throws LocalizationProviderException
      * @throws SettingsProviderException
      * @throws TelegramBotException
      * @throws \Exception
      */
-    function __construct(string $token, EntityManager $entity_manager, string $settings_path = "config/settings.json", int $log_verbosity = 0, string $log_path = null)
-    {
-        $this->logger = new Logger($log_verbosity, $log_path);
+    function __construct(
+        string $token,
+        EntityManager $entity_manager,
+        string $settings_path = "config/settings.json",
+        int $log_verbosity = 0,
+        string $log_path = null,
+        bool $force_log_output = false
+    ) {
+        $this->logger = new Logger($log_verbosity, $log_path, $force_log_output);
         $this->exception_handler = new ExceptionHandler($this->logger);
         $this->token = str_replace("bot", "", $token);
-        $this->provider = new SettingsProvider($this->logger, $settings_path);
+        $this->settings_provider = new SettingsProvider($this->logger, $settings_path);
         $this->entity_manager = $entity_manager;
         $this->event_handler = new EventHandler();
         if (file_exists($settings_path)) {
-            $this->settings = $this->provider->loadSettings()->getSettings();
+            $this->settings = $this->settings_provider->loadSettings()->getSettings();
         } else {
-            $this->settings = $this->provider->createSettings()->getSettings();
-            $this->provider->saveSettings();
+            $this->settings = $this->settings_provider->createSettings()->getSettings();
+            $this->settings_provider->saveSettings();
         }
+        $general_settings = $this->settings->getGeneralSection();
+        $this->localization_provider = new LocalizationProvider($general_settings->getDefaultLocale(),
+            $general_settings->getDefaultLocalePath());
+        $this->addLanguages();
         if ($this->logger->getVerbosity() >= 1) {
-            $log_message = sprintf("TelegramBot: New TelegramBot instance created (Token: '%s', Settings path: '%s', Logger verbosity: '%d', Logger path: '%s')", $this->token, $settings_path, $log_verbosity, $log_path);
+            $log_message = sprintf("TelegramBot: New TelegramBot instance created (Token: '%s', Settings path: '%s', Logger verbosity: '%d', Logger path: '%s')",
+                $this->token, $settings_path, $log_verbosity, $log_path);
             $this->logger->log($log_message);
         }
         if ($this->settings->getTelegramSection()->getUseTestApi()) {
@@ -131,16 +157,7 @@ class TelegramBot
         if ($this->settings->getGeneralSection()->getCheckIp() and !$this->use_polling) {
             $this->checkRequest();
         }
-        $this->createSimpleEvent(['message', 'text'], '/gen_auth', function (TelegramBot $bot) {
-            $auth_token = bin2hex(random_bytes(8));
-            $key = ftok(__FILE__, 't');
-            $mem = shmop_open($key, 'c', 0600, 138);
-            shmop_write($mem, time(), 0);
-            $auth_hash = hash('sha512', $auth_token);
-            shmop_write($mem, $auth_hash, 10);
-            $text = sprintf('Your authorization token is: <code>%s</code>.%sIt will connect your web browser to this user profile, and it will expire after using it (or after 300 seconds).', $auth_token, PHP_EOL);
-            $bot->sendMessage($text);
-        }, true);
+        $this->addInternalEvents();
         $shutdown_callback = function () {
             if (!empty($this->shared_data)) {
                 $basic_data = new DBEntity\BasicData();
@@ -151,6 +168,20 @@ class TelegramBot
             }
         };
         register_shutdown_function($shutdown_callback);
+    }
+
+    /**
+     * @throws LocalizationProviderException
+     */
+    private function addLanguages(): void
+    {
+        $languages = new \FilesystemIterator("languages", \FilesystemIterator::SKIP_DOTS);
+        foreach ($languages as $language) {
+            $locale = trim($language->getFilename());
+            $locale = strtolower($locale);
+            $locale = substr($locale, 0, 2);
+            $this->localization_provider->addLanguage($locale, $language);
+        }
     }
 
     /**
@@ -172,7 +203,9 @@ class TelegramBot
         $params = array_filter($params, function ($value) {
             return null != $value;
         });
-        if (isset($params['reply_markup'])) $params['reply_markup'] = json_encode($params['reply_markup']);
+        if (isset($params['reply_markup'])) {
+            $params['reply_markup'] = json_encode($params['reply_markup']);
+        }
         if ($method->isMultipart()) {
             $multipart_params = [];
             foreach ($params as $param => $value) {
@@ -204,7 +237,9 @@ class TelegramBot
         $result_name = $result_params['type'];
         if (!empty($result_name)) {
             $method_name = sprintf('parse%s', $result_name);
-            if ($result_params['multiple']) $method_name = sprintf('%ss', $method_name);
+            if ($result_params['multiple']) {
+                $method_name = sprintf('%ss', $method_name);
+            }
             $result_type = (object)[
                 'class' => $result_name,
                 'method' => $method_name
@@ -223,29 +258,36 @@ class TelegramBot
         $hashed_password = hash('sha512', $password);
         $session_started = session_start();
         $auth_hash = $_SESSION['auth_hash'] ?? null;
-        if (is_null($auth_hash)) {
+        if (null == $auth_hash) {
             $key = ftok(__FILE__, 't');
-            $mem = shmop_open($key, 'c', 0600, 138);
+            $mem = shmop_open($key, 'c', 0777, 138);
             $timestamp = shmop_read($mem, 0, 10);
             $auth_hash = shmop_read($mem, 10, 128);
-            if (empty($auth_hash)) throw new TelegramBotException('Authorization token unavailable, generate one first');
+            if (empty($auth_hash)) {
+                throw new TelegramBotException('Authorization token unavailable, generate one first');
+            }
             $time_diff = time() - $timestamp;
             if ($time_diff >= 300) {
                 shmop_delete($mem);
                 throw new TelegramBotException('Authorization token expired, generate another one');
             }
-            if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
+            if ($hashed_password != $auth_hash) {
+                throw new TelegramBotException('Invalid authorization token provided');
+            }
             if ($session_started) {
                 $_SESSION['auth_hash'] = $auth_hash;
                 $this->logger->log('TelegramBot: Authorization token verified, request granted; session registered successfully.');
                 shmop_delete($mem);
                 return;
             }
-            $message = sprintf("TelegramBot: Authorization token verified, request granted; session could not be registered (token will be valid only for %s seconds).", $time_diff);
+            $message = sprintf("TelegramBot: Authorization token verified, request granted; session could not be registered (token will be valid only for %s seconds).",
+                $time_diff);
             $this->logger->log($message);
             return;
         }
-        if ($hashed_password != $auth_hash) throw new TelegramBotException('Invalid authorization token provided');
+        if ($hashed_password != $auth_hash) {
+            throw new TelegramBotException('Invalid authorization token provided');
+        }
         $this->logger->log('TelegramBot: Authorization token verified, request granted; session resumed successfully.');
         return;
     }
@@ -278,7 +320,7 @@ class TelegramBot
             return;
         }
         $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-        if (is_null($_SERVER['REMOTE_ADDR'])) {
+        if (null == $_SERVER['REMOTE_ADDR']) {
             throw new TelegramBotException("Could not get IP Address");
         }
         if ($is_logging) {
@@ -300,56 +342,42 @@ class TelegramBot
     }
 
     /**
-     * @param array $update_path
-     * @param string $command
-     * @param \Closure $callback
-     * @param bool $admins_only
-     * @return DefaultEvent
-     * @throws Exception\EventException
+     * @throws EventException
      */
-    public function createSimpleEvent(array $update_path, string $command, \Closure $callback, bool $admins_only = false): DefaultEvent
+    private function addInternalEvents(): void
     {
-        $trigger = new Trigger($command);
-        $event = (new class($trigger, $callback, $admins_only, $update_path) extends DefaultEvent
-        {
-            /**
-             * @var array
-             */
-            public static $update_path;
-            /**
-             * @var string
-             */
-            public static $type;
-
-            /**
-             * Class constructor.
-             * @param Trigger $trigger
-             * @param \Closure $callback
-             * @param bool $admins_only
-             * @param array $final_update_path
-             */
-            function __construct(Trigger $trigger, \Closure $callback, bool $admins_only, array $final_update_path)
-            {
-                parent::__construct($trigger, $callback, $admins_only);
-                $this::$update_path = $final_update_path;
-                $final_type = str_replace('edited_', '', $final_update_path[0]);
-                $final_type = str_replace('_', '', ucwords($final_type, '_'));
-                if ($final_type === 'ChannelPost') $final_type = 'Message';
-                $final_type = sprintf('TelegramBot\Telegram\Types\%s', $final_type);
-                $this::$type = $final_type;
+        $auth_trigger = new Trigger('/gen_auth');
+        $auth_event = new MessageTextEvent($auth_trigger, function () {
+            $auth_token = bin2hex(random_bytes(8));
+            $key = ftok(__FILE__, 't');
+            $mem = shmop_open($key, 'c', 0777, 138);
+            shmop_write($mem, time(), 0);
+            $auth_hash = hash('sha512', $auth_token);
+            shmop_write($mem, $auth_hash, 10);
+            $text = sprintf('Your authorization token is: <code>%s</code>.%sIt will connect your web browser to this user profile, and it will expire after using it (or after 300 seconds).',
+                $auth_token, PHP_EOL);
+            $this->sendMessage($text);
+        }, true);
+        $change_locale_trigger = new Trigger('/change_locale');
+        $change_locale_event = new MessageTextEvent($change_locale_trigger, function () {
+            $locale = $this->updateUserLocale();
+            if (null != $locale) {
+                $text = sprintf('Cannot change locale, there is only one language available: <code>%s</code>.',
+                    $locale);
+                $this->sendMessage($text);
             }
         });
-        $this->addEvent($event);
-        return $event;
-    }
-
-    /**
-     * @param DefaultEvent $event
-     */
-    public function addEvent(DefaultEvent $event): void
-    {
-        $this->event_handler->addEvent($event);
-        return;
+        $set_locale_trigger = new Trigger('set_locale:', true, false);
+        $set_locale_event = new CallbackQueryEvent($set_locale_trigger, function () {
+            $callback_query = $this->update->callback_query;
+            $locale = explode(':', $callback_query->data)[1];
+            $this->addUser($callback_query->from->id, $locale);
+            $text = sprintf('Language set. From now on, you are using: <code>%s</code>.', $locale);
+            $this->editMessageText($text, false, $callback_query->message->message_id);
+        });
+        $this->event_handler->addInternalEvent($auth_event);
+        $this->event_handler->addInternalEvent($set_locale_event);
+        $this->event_handler->addInternalEvent($change_locale_event);
     }
 
     /**
@@ -393,6 +421,151 @@ class TelegramBot
     }
 
     /**
+     * @return mixed
+     * @throws TelegramBotException
+     */
+    private function updateUserLocale(): ?string
+    {
+        $available_languages = $this->localization_provider->getLanguages();
+        if (1 === count($available_languages)) {
+            return $available_languages[0];
+        }
+        $callback = 'set_locale:%s';
+        $buttons = [];
+        foreach ($available_languages as $available_language) {
+            $buttons[] = KeyboardUtil::generateInlineKeyboardButton($available_language, 'callback_data',
+                sprintf($callback, $available_language));
+        }
+        $total_buttons = count($buttons);
+        $columns = floor(sqrt($total_buttons));
+        $rows_count = ceil($total_buttons / $columns);
+        $rows = array_chunk($buttons, $rows_count);
+        $keyboard = [];
+        foreach ($rows as $row) {
+            $keyboard[] = KeyboardUtil::generateInlineKeyboardRow($row);
+        }
+        $this->sendMessage("Select your language:", null,
+            ["reply_markup" => KeyboardUtil::generateInlineKeyboard($keyboard)]);
+        return null;
+    }
+
+    /**
+     * @param int $user_id
+     * @param string $language_code
+     * @param bool $blocked
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
+    private function addUser(int $user_id, string $language_code, bool $blocked = false): void
+    {
+        $user = $this->entity_manager->getRepository('TelegramBot\DBEntity\User')->find($user_id);
+        if (null == $user) {
+            $user = new DBEntity\User();
+        }
+        $user->setId($user_id);
+        $user->setLanguageCode($language_code);
+        $user->setBlocked($blocked);
+        $this->entity_manager->persist($user);
+        if (true == $this->auto_flush) {
+            $this->entity_manager->flush();
+        }
+    }
+
+    /**
+     * @param string $text
+     * @param bool $is_inline
+     * @param string $message_id
+     * @param string|null $chat_id
+     * @param array $params
+     * @return null|Response
+     * @throws TelegramBotException
+     */
+    public function editMessageText(
+        string $text,
+        bool $is_inline,
+        string $message_id,
+        string $chat_id = null,
+        array $params = []
+    ): ?Response {
+        if ($is_inline) {
+            $inline_message_id = $message_id;
+        } elseif (empty($chat_id)) {
+            $chat_id = $this->getChatID();
+        }
+        if (!isset($params['parse_mode'])) {
+            $params['parse_mode'] = $this->settings->getTelegramSection()->getParseMode();
+        }
+        return $this->sendRequest(new Methods\EditMessageText(
+            $chat_id ?? null,
+            $message_id,
+            $inline_message_id ?? null,
+            $text,
+            $params['parse_mode'] ?? null,
+            $params['disable_web_page_preview'] ?? false,
+            $params['reply_markup'] ?? null
+        ));
+    }
+
+    /**
+     * @param array $update_path
+     * @param string $command
+     * @param \Closure $callback
+     * @param bool $admins_only
+     * @return DefaultEvent
+     * @throws Exception\EventException
+     */
+    public function createSimpleEvent(
+        array $update_path,
+        string $command,
+        \Closure $callback,
+        bool $admins_only = false
+    ): DefaultEvent {
+        $trigger = new Trigger($command);
+        $event = (new class($trigger, $callback, $admins_only, $update_path) extends DefaultEvent
+        {
+            /**
+             * @var array
+             */
+            public static $update_path;
+            /**
+             * @var string
+             */
+            public static $type;
+
+            /**
+             * Class constructor.
+             * @param Trigger $trigger
+             * @param \Closure $callback
+             * @param bool $admins_only
+             * @param array $final_update_path
+             */
+            function __construct(Trigger $trigger, \Closure $callback, bool $admins_only, array $final_update_path)
+            {
+                parent::__construct($trigger, $callback, $admins_only);
+                $this::$update_path = $final_update_path;
+                $final_type = str_replace('edited_', '', $final_update_path[0]);
+                $final_type = str_replace('_', '', ucwords($final_type, '_'));
+                if ($final_type === 'ChannelPost') {
+                    $final_type = 'Message';
+                }
+                $final_type = sprintf('TelegramBot\Telegram\Types\%s', $final_type);
+                $this::$type = $final_type;
+            }
+        });
+        $this->addEvent($event);
+        return $event;
+    }
+
+    /**
+     * @param DefaultEvent $event
+     */
+    public function addEvent(DefaultEvent $event): void
+    {
+        $this->event_handler->addEvent($event);
+        return;
+    }
+
+    /**
      * @return EntityManager|null
      */
     public function getEntityManager(): ?EntityManager
@@ -415,7 +588,7 @@ class TelegramBot
      */
     public function getProvider(): ?SettingsProvider
     {
-        return $this->provider;
+        return $this->settings_provider;
     }
 
     /**
@@ -423,7 +596,7 @@ class TelegramBot
      */
     public function refreshSettings(): void
     {
-        $this->settings = $this->provider->getSettings();
+        $this->settings = $this->settings_provider->getSettings();
         return;
     }
 
@@ -458,8 +631,12 @@ class TelegramBot
      * @param bool $disable_notification
      * @return null|Response
      */
-    public function forwardMessage(string $chat_id, string $from_chat_id, int $message_id, bool $disable_notification = false): ?Response
-    {
+    public function forwardMessage(
+        string $chat_id,
+        string $from_chat_id,
+        int $message_id,
+        bool $disable_notification = false
+    ): ?Response {
         $method = new Methods\ForwardMessage(
             $chat_id,
             $from_chat_id,
@@ -689,8 +866,12 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function sendLocation(float $latitude, float $longitude, string $chat_id = null, array $params = []): ?Response
-    {
+    public function sendLocation(
+        float $latitude,
+        float $longitude,
+        string $chat_id = null,
+        array $params = []
+    ): ?Response {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
         }
@@ -715,8 +896,14 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function sendVenue(float $latitude, float $longitude, string $title, string $address, string $chat_id = null, array $params = []): ?Response
-    {
+    public function sendVenue(
+        float $latitude,
+        float $longitude,
+        string $title,
+        string $address,
+        string $chat_id = null,
+        array $params = []
+    ): ?Response {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
         }
@@ -744,8 +931,14 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function editMessageLiveLocation(float $latitude, float $longitude, bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
-    {
+    public function editMessageLiveLocation(
+        float $latitude,
+        float $longitude,
+        bool $is_inline,
+        string $message_id,
+        string $chat_id = null,
+        Types\InlineKeyboardMarkup $reply_markup = null
+    ): ?Response {
         if ($is_inline) {
             $inline_message_id = $message_id;
         } elseif (empty($chat_id)) {
@@ -769,8 +962,12 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function stopMessageLiveLocation(bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
-    {
+    public function stopMessageLiveLocation(
+        bool $is_inline,
+        string $message_id,
+        string $chat_id = null,
+        Types\InlineKeyboardMarkup $reply_markup = null
+    ): ?Response {
         if ($is_inline) {
             $inline_message_id = $message_id;
         } elseif (empty($chat_id)) {
@@ -792,8 +989,12 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function sendContact(string $phone_number, string $first_name, string $chat_id = null, array $params = []): ?Response
-    {
+    public function sendContact(
+        string $phone_number,
+        string $first_name,
+        string $chat_id = null,
+        array $params = []
+    ): ?Response {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
         }
@@ -1039,8 +1240,11 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function pinChatMessage(int $message_id, string $chat_id = null, bool $disable_notification = false): ?Response
-    {
+    public function pinChatMessage(
+        int $message_id,
+        string $chat_id = null,
+        bool $disable_notification = false
+    ): ?Response {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
         }
@@ -1194,7 +1398,6 @@ class TelegramBot
     }
 
     /**
-     * @param string $text
      * @param bool $is_inline
      * @param string $message_id
      * @param string|null $chat_id
@@ -1202,37 +1405,12 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function editMessageText(string $text, bool $is_inline, string $message_id, string $chat_id = null, array $params = []): ?Response
-    {
-        if ($is_inline) {
-            $inline_message_id = $message_id;
-        } elseif (empty($chat_id)) {
-            $chat_id = $this->getChatID();
-        }
-        if (!isset($params['parse_mode'])) {
-            $params['parse_mode'] = $this->settings->getTelegramSection()->getParseMode();
-        }
-        return $this->sendRequest(new Methods\EditMessageText(
-            $chat_id ?? null,
-            $message_id,
-            $inline_message_id ?? null,
-            $text,
-            $params['parse_mode'] ?? null,
-            $params['disable_web_page_preview'] ?? false,
-            $params['reply_markup'] ?? null
-        ));
-    }
-
-    /**
-     * @param bool $is_inline
-     * @param string $message_id
-     * @param string|null $chat_id
-     * @param array $params
-     * @return null|Response
-     * @throws TelegramBotException
-     */
-    public function editMessageCaption(bool $is_inline, string $message_id, string $chat_id = null, array $params = []): ?Response
-    {
+    public function editMessageCaption(
+        bool $is_inline,
+        string $message_id,
+        string $chat_id = null,
+        array $params = []
+    ): ?Response {
         if ($is_inline) {
             $inline_message_id = $message_id;
         } elseif (empty($chat_id)) {
@@ -1259,8 +1437,12 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function editMessageReplyMarkup(bool $is_inline, string $message_id, string $chat_id = null, Types\InlineKeyboardMarkup $reply_markup = null): ?Response
-    {
+    public function editMessageReplyMarkup(
+        bool $is_inline,
+        string $message_id,
+        string $chat_id = null,
+        Types\InlineKeyboardMarkup $reply_markup = null
+    ): ?Response {
         if ($is_inline) {
             $inline_message_id = $message_id;
         } elseif (empty($chat_id)) {
@@ -1324,8 +1506,14 @@ class TelegramBot
      * @param array $params
      * @return null|Response
      */
-    public function createNewStickerSet(int $user_id, string $name, string $title, Types\InputFile $sticker, string $emojis, array $params = []): ?Response
-    {
+    public function createNewStickerSet(
+        int $user_id,
+        string $name,
+        string $title,
+        Types\InputFile $sticker,
+        string $emojis,
+        array $params = []
+    ): ?Response {
         return $this->sendRequest(new Methods\CreateNewStickerSet(
             $user_id,
             $name,
@@ -1345,8 +1533,13 @@ class TelegramBot
      * @param Types\MaskPosition|null $mask_position
      * @return null|Response
      */
-    public function addStickerToSet(int $user_id, string $name, Types\InputFile $sticker, string $emojis, Types\MaskPosition $mask_position = null): ?Response
-    {
+    public function addStickerToSet(
+        int $user_id,
+        string $name,
+        Types\InputFile $sticker,
+        string $emojis,
+        Types\MaskPosition $mask_position = null
+    ): ?Response {
         return $this->sendRequest(new Methods\AddStickerToSet(
             $user_id,
             $name,
@@ -1428,8 +1621,17 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function sendInvoice(string $title, string $description, string $payload, string $provider_token, string $start_parameter, string $currency, array $prices, array $params = [], string $chat_id = null): ?Response
-    {
+    public function sendInvoice(
+        string $title,
+        string $description,
+        string $payload,
+        string $provider_token,
+        string $start_parameter,
+        string $currency,
+        array $prices,
+        array $params = [],
+        string $chat_id = null
+    ): ?Response {
         if (empty($chat_id)) {
             $chat_id = $this->getChatID();
         }
@@ -1473,9 +1675,13 @@ class TelegramBot
             $shipping_query_id = $this->getShippingQueryID();
         }
         if ($ok) {
-            if (empty($request_params['shipping_options'])) throw new TelegramBotException('Shipping Options field required');
+            if (empty($request_params['shipping_options'])) {
+                throw new TelegramBotException('Shipping Options field required');
+            }
         } else {
-            if (empty($request_params['error_message'])) throw new TelegramBotException('Error message field required');
+            if (empty($request_params['error_message'])) {
+                throw new TelegramBotException('Error message field required');
+            }
         }
         return $this->sendRequest(new Methods\AnswerShippingQuery(
             $shipping_query_id,
@@ -1504,12 +1710,17 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function answerPreCheckoutQuery(bool $ok, string $error_message = null, int $pre_checkout_query_id = null): ?Response
-    {
+    public function answerPreCheckoutQuery(
+        bool $ok,
+        string $error_message = null,
+        int $pre_checkout_query_id = null
+    ): ?Response {
         if (empty($pre_checkout_query_id)) {
             $pre_checkout_query_id = $this->getPreCheckoutQueryID();
         }
-        if (!$ok and empty($error_message)) throw new TelegramBotException("Error Message field required");
+        if (!$ok and empty($error_message)) {
+            throw new TelegramBotException("Error Message field required");
+        }
         return $this->sendRequest(new Methods\AnswerPreCheckoutQuery(
             $pre_checkout_query_id,
             $ok,
@@ -1573,8 +1784,14 @@ class TelegramBot
      * @return null|Response
      * @throws TelegramBotException
      */
-    public function setGameScore(int $user_id, int $score, bool $is_inline, string $message_id, array $params = [], string $chat_id = null): ?Response
-    {
+    public function setGameScore(
+        int $user_id,
+        int $score,
+        bool $is_inline,
+        string $message_id,
+        array $params = [],
+        string $chat_id = null
+    ): ?Response {
         if ($is_inline) {
             $inline_message_id = $message_id;
         } elseif (empty($chat_id)) {
@@ -1650,7 +1867,9 @@ class TelegramBot
                         exit;
                     }
                     $results = $this->processUpdate($update);
-                    if (!empty($results)) $this->processResults($results);
+                    if (!empty($results)) {
+                        $this->processResults($results);
+                    }
                     $offset++;
                 }
             }
@@ -1659,7 +1878,9 @@ class TelegramBot
                 $this->logger->log("TelegramBot: Webhook mode started.");
             }
             $results = $this->processUpdate($this->update);
-            if (!empty($results)) $this->processResults($results);
+            if (!empty($results)) {
+                $this->processResults($results);
+            }
         }
         return;
     }
@@ -1688,12 +1909,25 @@ class TelegramBot
     private function processUpdate(Update $update): array
     {
         if ($this->logger->getVerbosity() === 2) {
-            $log_message = sprintf("TelegramBot: New Update received. (%s)", json_encode($update, JSON_UNESCAPED_SLASHES));
+            $log_message = sprintf("TelegramBot: New Update received. (%s)",
+                json_encode($update, JSON_UNESCAPED_SLASHES));
             $this->logger->log($log_message);
         }
+        $this->update = $update;
         $update_data = $update->{$update->type};
-        if (!empty($update_data->from)) {
-            $this->addUser($update_data->from->id);
+        $user = $update_data->from;
+        $addons_result = $this->event_handler->processAddons($this, $this->update);
+        if (!$addons_result) {
+            return [];
+        }
+        $this->event_handler->processInternalEvents($this, $this->update);
+        $user_data = $this->getUserData($user->id);
+        if (null == $user_data or null == $user_data->getLanguageCode()) {
+            $language_code = $this->getUserLocale($user);
+            if (null == $language_code) {
+                return [];
+            }
+            $this->addUser($user->id, $language_code);
         }
         if (!empty($update_data->chat) and $update_data->chat->id < 0) {
             $admins_data = $this->getChatAdministrators($update_data->chat->id);
@@ -1702,25 +1936,34 @@ class TelegramBot
             }, (array)$admins_data->result);
             $this->addChat($update_data->chat->id, $update_data->chat->type, $admins);
         }
-        $this->update = $update;
         $results = $this->event_handler->processEvents($this, $this->update);
         return $results;
     }
 
     /**
      * @param int $user_id
-     * @param bool $blocked
-     * @throws \Doctrine\ORM\ORMException
-     * @throws \Doctrine\ORM\OptimisticLockException
+     * @return object|null
      */
-    private function addUser(int $user_id, bool $blocked = false): void
+    public function getUserData(int $user_id): ?User
     {
-        $user = $this->entity_manager->getRepository('TelegramBot\DBEntity\User')->find($user_id);
-        if (is_null($user)) $user = new DBEntity\User();
-        $user->setId($user_id);
-        $user->setBlocked($blocked);
-        $this->entity_manager->persist($user);
-        if (true == $this->auto_flush) $this->entity_manager->flush();
+        return $this->entity_manager->getRepository('TelegramBot\DBEntity\User')->find($user_id);
+    }
+
+    /**
+     * @param Types\User $user
+     * @return string
+     * @throws TelegramBotException
+     */
+    private function getUserLocale(Types\User $user): ?string
+    {
+        $locale = $this->getUserData($user->id) ?? $user->language_code ?? null;
+        if (is_object($locale)) {
+            return $locale->getLanguageCode();
+        }
+        if (null != $locale) {
+            return $locale;
+        }
+        return $this->updateUserLocale();
     }
 
     /**
@@ -1748,12 +1991,16 @@ class TelegramBot
     private function addChat(int $chat_id, string $type, array $admins): void
     {
         $chat = $this->entity_manager->getRepository('TelegramBot\DBEntity\Chat')->find($chat_id);
-        if (is_null($chat)) $chat = new DBEntity\Chat();
+        if (null == $chat) {
+            $chat = new DBEntity\Chat();
+        }
         $chat->setId($chat_id);
         $chat->setType($type);
         $chat->setAdmins($admins);
         $this->entity_manager->persist($chat);
-        if (true == $this->auto_flush) $this->entity_manager->flush();
+        if (true == $this->auto_flush) {
+            $this->entity_manager->flush();
+        }
     }
 
     /**
@@ -1761,7 +2008,9 @@ class TelegramBot
      */
     private function processResults(array $results): void
     {
-        if (!$this->results_callback instanceof \Closure) return;
+        if (!$this->results_callback instanceof \Closure) {
+            return;
+        }
         $results_callback = $this->results_callback;
         foreach ($results as $result) {
             $results_callback($result);
@@ -1804,5 +2053,34 @@ class TelegramBot
     public function getCurrentUpdate(): ?Update
     {
         return $this->update;
+    }
+
+    /**
+     * @param string $key
+     * @param string|null $locale
+     * @return string
+     * @throws LocalizationProviderException
+     * @throws TelegramBotException
+     */
+    public function getLanguageValue(string $key, string $locale = null): string
+    {
+        $update_data = $this->update->{$this->update->type};
+        $user = $update_data->from;
+        if (null == $locale) {
+            $locale = $this->getUserLocale($user);
+        }
+        if (null == $locale) {
+            throw new TelegramBotException("Could not get user locale");
+        }
+        return $this->localization_provider->getLanguageField($locale, $key);
+    }
+
+    /**
+     * @param int $chat_id
+     * @return object|null
+     */
+    public function getChatData(int $chat_id): ?Chat
+    {
+        return $this->entity_manager->getRepository('TelegramBot\DBEntity\Chat')->find($chat_id);
     }
 }

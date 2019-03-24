@@ -64,8 +64,14 @@ class EditMessageCaption implements MethodInterface
      * @param string|null $parse_mode
      * @param InlineKeyboardMarkup|null $reply_markup
      */
-    function __construct(?string $chat_id, ?int $message_id, ?string $inline_message_id, string $caption = null, string $parse_mode = null, InlineKeyboardMarkup $reply_markup = null)
-    {
+    function __construct(
+        ?string $chat_id,
+        ?int $message_id,
+        ?string $inline_message_id,
+        string $caption = null,
+        string $parse_mode = null,
+        InlineKeyboardMarkup $reply_markup = null
+    ) {
         $this->chat_id = $chat_id;
         $this->message_id = $message_id;
         $this->inline_message_id = $inline_message_id;

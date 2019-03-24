@@ -47,7 +47,9 @@ class InlineQueryResultAudio extends InlineQueryResult
      */
     public static function parseInlineQueryResult(?\stdClass $inline_query_result_audio): ?InlineQueryResultInterface
     {
-        if (is_null($inline_query_result_audio)) return null;
+        if (is_null($inline_query_result_audio)) {
+            return null;
+        }
         return (new self())
             ->setAudioUrl($inline_query_result_audio->audio_url ?? null)
             ->setTitle($inline_query_result_audio->title ?? null)

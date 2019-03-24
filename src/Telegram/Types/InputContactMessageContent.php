@@ -33,9 +33,11 @@ class InputContactMessageContent extends InputMessageContent
      * @param null|\stdClass $input_contact_message_content
      * @return null|InputContactMessageContent
      */
-    public static function parseInputMessageContent(?\stdClass $input_contact_message_content): ?InputMessageContentInterface
-    {
-        if (is_null($input_contact_message_content)) return null;
+    public static function parseInputMessageContent(?\stdClass $input_contact_message_content
+    ): ?InputMessageContentInterface {
+        if (is_null($input_contact_message_content)) {
+            return null;
+        }
         return (new self())
             ->setPhoneNumber($input_contact_message_content->phone_number ?? null)
             ->setFirstName($input_contact_message_content->first_name ?? null)

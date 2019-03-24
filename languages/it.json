@@ -1,0 +1,15 @@
+{
+  "greetings": "Ciao!",
+  "greetings_kb": "Ciao (con reply keyboard)!",
+  "greetings_remove_kb": "Ciao (con reply keyboard rimossa)!",
+  "greetings_force": "Ciao (con force reply)!",
+  "greetings_inline": "Ciao (con inline keyboard)!",
+  "greetings_toast": "Ciao (da toast)!",
+  "greetings_alert": "Ciao (da alert)!",
+  "contact_btn": "Contatto",
+  "location_btn": "Localizzazione",
+  "normal_btn": "Pulsante normale",
+  "callback_btn": "Pulsante callback",
+  "url_btn": "Pulsante URL",
+  "another_callback_btn": "Altro pulsante callback"
+}

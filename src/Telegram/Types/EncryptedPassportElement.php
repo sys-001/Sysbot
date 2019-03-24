@@ -59,7 +59,9 @@ class EncryptedPassportElement
      */
     public static function parseEncryptedPassportElement(?\stdClass $encrypted_passport_element): ?self
     {
-        if (is_null($encrypted_passport_element)) return null;
+        if (is_null($encrypted_passport_element)) {
+            return null;
+        }
         return (new self())
             ->setType($encrypted_passport_element->type ?? null)
             ->setData($encrypted_passport_element->data ?? null)
@@ -179,7 +181,9 @@ class EncryptedPassportElement
      */
     public static function parseEncryptedPassportElements(?array $encrypted_passport_elements): ?array
     {
-        if (is_null($encrypted_passport_elements)) return null;
+        if (is_null($encrypted_passport_elements)) {
+            return null;
+        }
         return array_map(['self', 'parseEncryptedPassportElement'], $encrypted_passport_elements);
     }
 }

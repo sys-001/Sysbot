@@ -51,7 +51,9 @@ class InputMediaAnimation extends InputMedia
      */
     public static function parseInputMedia(?\stdClass $input_media_animation): ?InputMediaInterface
     {
-        if (is_null($input_media_animation)) return null;
+        if (is_null($input_media_animation)) {
+            return null;
+        }
         return (new self())
             ->setThumb($input_media_animation->thumb ?? null)
             ->setWidth($input_media_animation->width ?? null)

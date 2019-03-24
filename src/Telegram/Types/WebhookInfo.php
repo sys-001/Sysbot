@@ -47,7 +47,9 @@ class WebhookInfo
      */
     public static function parseWebhookInfo(?\stdClass $webhook_info): ?self
     {
-        if (is_null($webhook_info)) return null;
+        if (is_null($webhook_info)) {
+            return null;
+        }
         return (new self())
             ->setUrl($webhook_info->url ?? null)
             ->setHasCustomCertificate($webhook_info->has_custom_certificate ?? null)

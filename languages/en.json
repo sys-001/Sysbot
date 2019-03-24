@@ -1,0 +1,15 @@
+{
+  "greetings": "Hi!",
+  "greetings_kb": "Hi with reply keyboard!",
+  "greetings_remove_kb": "Hi with reply keyboard removed!",
+  "greetings_force": "Hi with force reply!",
+  "greetings_inline": "Hi with inline keyboard!",
+  "greetings_toast": "Hi from toast!",
+  "greetings_alert": "Hi from alert!",
+  "contact_btn": "Contact button",
+  "location_btn": "Location button",
+  "normal_btn": "Normal button",
+  "callback_btn": "Callback button",
+  "url_btn": "URL button",
+  "another_callback_btn": "Another callback button"
+}

@@ -21,7 +21,9 @@ class CallbackGame
      */
     public static function parseCallbackGame(?\stdClass $callback_game): ?self
     {
-        if (is_null($callback_game)) return null;
+        if (is_null($callback_game)) {
+            return null;
+        }
         return (new self())
             ->setCallbackGame($callback_game ?? null);
     }

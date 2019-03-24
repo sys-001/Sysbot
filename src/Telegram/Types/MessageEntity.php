@@ -39,7 +39,9 @@ class MessageEntity
      */
     public static function parseMessageEntity(?\stdClass $message_entity): ?self
     {
-        if (is_null($message_entity)) return null;
+        if (is_null($message_entity)) {
+            return null;
+        }
         return (new self())
             ->setType($message_entity->type ?? null)
             ->setOffset($message_entity->offset ?? null)
@@ -104,7 +106,9 @@ class MessageEntity
      */
     public static function parseMessageEntities(?array $message_entities): ?array
     {
-        if (is_null($message_entities)) return null;
+        if (is_null($message_entities)) {
+            return null;
+        }
         return array_map(['self', 'parseMessageEntity'], $message_entities);
     }
 }

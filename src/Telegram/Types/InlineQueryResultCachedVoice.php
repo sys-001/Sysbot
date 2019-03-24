@@ -37,9 +37,11 @@ class InlineQueryResultCachedVoice extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_voice
      * @return null|InlineQueryResultCachedVoice
      */
-    public static function parseInlineQueryResultCachedVoice(?\stdClass $inline_query_result_cached_voice): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_voice)) return null;
+    public static function parseInlineQueryResultCachedVoice(?\stdClass $inline_query_result_cached_voice
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_voice)) {
+            return null;
+        }
         return (new self())
             ->setVoiceFileId($inline_query_result_cached_voice->voice_file_id ?? null)
             ->setTitle($inline_query_result_cached_voice->title ?? null)

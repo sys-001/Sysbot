@@ -47,7 +47,9 @@ class PreCheckoutQuery
      */
     public static function parsePreCheckoutQuery(?\stdClass $pre_checkout_query): ?self
     {
-        if (is_null($pre_checkout_query)) return null;
+        if (is_null($pre_checkout_query)) {
+            return null;
+        }
         return (new self())
             ->setId($pre_checkout_query->id ?? null)
             ->setFrom(User::parseUser($pre_checkout_query->from ?? null))

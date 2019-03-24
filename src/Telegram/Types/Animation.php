@@ -51,7 +51,9 @@ class Animation
      */
     public static function parseAnimation(?\stdClass $animation): ?self
     {
-        if (is_null($animation)) return null;
+        if (is_null($animation)) {
+            return null;
+        }
         return (new self())
             ->setFileId($animation->file_id ?? null)
             ->setWidth($animation->width ?? null)

@@ -35,7 +35,9 @@ class ShippingQuery
      */
     public static function parseShippingQuery(?\stdClass $shipping_query): ?self
     {
-        if (is_null($shipping_query)) return null;
+        if (is_null($shipping_query)) {
+            return null;
+        }
         return (new self())
             ->setId($shipping_query->id ?? null)
             ->setFrom(User::parseUser($shipping_query->from ?? null))

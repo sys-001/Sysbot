@@ -39,7 +39,9 @@ class ChosenInlineResult
      */
     public static function parseChosenInlineResult(?\stdClass $chosen_inline_result): ?self
     {
-        if (is_null($chosen_inline_result)) return null;
+        if (is_null($chosen_inline_result)) {
+            return null;
+        }
         return (new self())
             ->setResultId($chosen_inline_result->result_id ?? null)
             ->setFrom(User::parseUser($chosen_inline_result->from ?? null))

@@ -31,7 +31,9 @@ class EncryptedCredentials
      */
     public static function parseEncryptedCredentials(?\stdClass $encrypted_credentials): ?self
     {
-        if (is_null($encrypted_credentials)) return null;
+        if (is_null($encrypted_credentials)) {
+            return null;
+        }
         return (new self())
             ->setData($encrypted_credentials->data ?? null)
             ->setHash($encrypted_credentials->hash ?? null)

@@ -27,7 +27,9 @@ class ForceReply implements ReplyMarkupInterface
      */
     public static function parseForceReply(?\stdClass $force_reply): ?self
     {
-        if (is_null($force_reply)) return null;
+        if (is_null($force_reply)) {
+            return null;
+        }
         return (new self())
             ->setForceReply($force_reply->force_reply ?? null)
             ->setSelective($force_reply->selective ?? null);

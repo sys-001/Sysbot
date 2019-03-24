@@ -35,7 +35,9 @@ class StickerSet
      */
     public static function parseStickerSet(?\stdClass $sticker_set): ?self
     {
-        if (is_null($sticker_set)) return null;
+        if (is_null($sticker_set)) {
+            return null;
+        }
         return (new self())
             ->setName($sticker_set->name ?? null)
             ->setTitle($sticker_set->title ?? null)

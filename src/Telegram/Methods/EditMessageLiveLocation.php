@@ -66,8 +66,14 @@ class EditMessageLiveLocation implements MethodInterface
      * @param InlineKeyboardMarkup|null $reply_markup
      * @throws TelegramBotException
      */
-    function __construct(?string $chat_id, ?int $message_id, ?string $inline_message_id, float $latitude, float $longitude, InlineKeyboardMarkup $reply_markup = null)
-    {
+    function __construct(
+        ?string $chat_id,
+        ?int $message_id,
+        ?string $inline_message_id,
+        float $latitude,
+        float $longitude,
+        InlineKeyboardMarkup $reply_markup = null
+    ) {
         if (!isset($inline_message_id)) {
             if (isset($chat_id) and isset($message_id)) {
                 $this->chat_id = $chat_id;

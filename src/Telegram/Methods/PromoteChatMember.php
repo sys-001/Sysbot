@@ -82,8 +82,18 @@ class PromoteChatMember implements MethodInterface
      * @param bool $can_pin_messages
      * @param bool $can_promote_members
      */
-    function __construct(string $chat_id, int $user_id, bool $can_change_info = false, bool $can_post_messages = false, bool $can_edit_messages = null, bool $can_delete_messages = null, bool $can_invite_users = false, bool $can_restrict_members = false, bool $can_pin_messages = false, bool $can_promote_members = false)
-    {
+    function __construct(
+        string $chat_id,
+        int $user_id,
+        bool $can_change_info = false,
+        bool $can_post_messages = false,
+        bool $can_edit_messages = null,
+        bool $can_delete_messages = null,
+        bool $can_invite_users = false,
+        bool $can_restrict_members = false,
+        bool $can_pin_messages = false,
+        bool $can_promote_members = false
+    ) {
         $this->chat_id = $chat_id;
         $this->user_id = $user_id;
         $this->can_change_info = $can_change_info;

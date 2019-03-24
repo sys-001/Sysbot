@@ -46,7 +46,9 @@ class Audio
      */
     public static function parseAudio(?\stdClass $audio): ?self
     {
-        if (is_null($audio)) return null;
+        if (is_null($audio)) {
+            return null;
+        }
         return (new self())
             ->setFileId($audio->file_id ?? null)
             ->setDuration($audio->duration ?? null)

@@ -31,7 +31,9 @@ class GameHighScore
      */
     public static function parseGameHighScore(?\stdClass $game_high_score): ?self
     {
-        if (is_null($game_high_score)) return null;
+        if (is_null($game_high_score)) {
+            return null;
+        }
         return (new self())
             ->setPosition($game_high_score->position ?? null)
             ->setUser(User::parseUser($game_high_score->user ?? null))

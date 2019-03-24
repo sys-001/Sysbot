@@ -23,7 +23,9 @@ class InlineQueryResultGame extends InlineQueryResult
      */
     public static function parseInlineQueryResultGame(?\stdClass $inline_query_result_game): ?InlineQueryResultInterface
     {
-        if (is_null($inline_query_result_game)) return null;
+        if (is_null($inline_query_result_game)) {
+            return null;
+        }
         return (new self())
             ->setGameShortName($inline_query_result_game->game_short_name ?? null)
             ->setType($inline_query_result_game->type ?? null)

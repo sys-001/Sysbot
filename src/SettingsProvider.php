@@ -62,6 +62,8 @@ class SettingsProvider
     /**
      * @param AdminHandler|null $admin_handler
      * @param bool $check_ip
+     * @param string $default_locale
+     * @param string $default_locale_path
      * @param string $parse_mode
      * @param bool $send_actions
      * @param bool $use_test_api
@@ -78,6 +80,8 @@ class SettingsProvider
     function createSettings(
         AdminHandler $admin_handler = null,
         bool $check_ip = true,
+        string $default_locale = "en",
+        string $default_locale_path = "languages/en.json",
         string $parse_mode = "HTML",
         bool $send_actions = true,
         bool $use_test_api = false,
@@ -88,12 +92,11 @@ class SettingsProvider
         int $antiflood_messages_number = 5,
         int $antiflood_ban_seconds = 120,
         string $antiflood_ban_message = "Flood detected, you're banned for 2 minutes."
-    ): self
-    {
+    ): self {
         if (null === $admin_handler) {
             $admin_handler = new AdminHandler([]);
         }
-        $general = new Sections\GeneralSection($admin_handler, $check_ip);
+        $general = new Sections\GeneralSection($admin_handler, $check_ip, $default_locale, $default_locale_path);
         $telegram = new Sections\TelegramSection($parse_mode, $send_actions, $use_test_api);
         $maintenance = new Sections\MaintenanceSection($maintenance_enabled, $maintenance_message);
         $antiflood = new Sections\AntifloodSection($antiflood_enabled, $antiflood_seconds, $antiflood_messages_number,
@@ -103,7 +106,9 @@ class SettingsProvider
             $log_message = sprintf("SettingsProvider: New Settings instance created. (%s)", json_encode([
                 'general' => [
                     'admins' => $admin_handler->getAdmins(),
-                    'check_ip' => $check_ip
+                    'check_ip' => $check_ip,
+                    'default_locale' => $default_locale,
+                    'default_locale_path' => $default_locale_path
                 ],
                 'telegram' => [
                     'parse_mode' => $parse_mode,
@@ -140,7 +145,9 @@ class SettingsProvider
         $settings_json = json_encode([
             'general' => [
                 'admins' => $general->getAdminHandler()->getAdmins(),
-                'check_ip' => $general->getCheckIp()
+                'check_ip' => $general->getCheckIp(),
+                'default_locale' => $general->getDefaultLocale(),
+                'default_locale_path' => $general->getDefaultLocalePath()
             ],
             'telegram' => [
                 'parse_mode' => $telegram->getParseMode(),
@@ -158,7 +165,7 @@ class SettingsProvider
                 'ban_seconds' => $antiflood->getBanSeconds(),
                 'ban_message' => $antiflood->getBanMessage()
             ]
-        ], JSON_UNESCAPED_SLASHES);
+        ], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         $result = file_put_contents($this->path, $settings_json);
         if (false === $result) {
             throw new SettingsProviderException("Could not save settings");
@@ -175,9 +182,6 @@ class SettingsProvider
      */
     function getSettings(): Settings
     {
-        if ($this->logger->getVerbosity() >= 1) {
-            $this->logger->log("SettingsProvider: Settings instance returned.");
-        }
         return $this->settings;
     }
 
@@ -196,7 +200,8 @@ class SettingsProvider
             throw new SettingsProviderException("Invalid settings file");
         }
         $admin_handler = new AdminHandler($settings->general->admins);
-        $general_section = new Sections\GeneralSection($admin_handler, $settings->general->check_ip);
+        $general_section = new Sections\GeneralSection($admin_handler, $settings->general->check_ip,
+            $settings->general->default_locale, $settings->general->default_locale_path);
         $telegram_section = new Sections\TelegramSection($settings->telegram->parse_mode,
             $settings->telegram->send_actions, $settings->telegram->use_test_api);
         $maintenance_section = new Sections\MaintenanceSection($settings->maintenance->enabled,

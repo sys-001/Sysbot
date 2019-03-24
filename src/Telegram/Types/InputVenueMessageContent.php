@@ -41,9 +41,11 @@ class InputVenueMessageContent extends InputMessageContent
      * @param null|\stdClass $input_venue_message_content
      * @return null|InputVenueMessageContent
      */
-    public static function parseInputMessageContent(?\stdClass $input_venue_message_content): ?InputMessageContentInterface
-    {
-        if (is_null($input_venue_message_content)) return null;
+    public static function parseInputMessageContent(?\stdClass $input_venue_message_content
+    ): ?InputMessageContentInterface {
+        if (is_null($input_venue_message_content)) {
+            return null;
+        }
         return (new self())
             ->setLatitude($input_venue_message_content->latitude ?? null)
             ->setLongitude($input_venue_message_content->longitude ?? null)

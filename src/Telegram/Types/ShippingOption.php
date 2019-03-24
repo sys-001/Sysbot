@@ -31,7 +31,9 @@ class ShippingOption
      */
     public static function parseShippingOption(?\stdClass $shipping_option): ?self
     {
-        if (is_null($shipping_option)) return null;
+        if (is_null($shipping_option)) {
+            return null;
+        }
         return (new self())
             ->setId($shipping_option->id ?? null)
             ->setTitle($shipping_option->title ?? null)

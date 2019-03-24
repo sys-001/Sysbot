@@ -43,7 +43,9 @@ class ShippingAddress
      */
     public static function parseShippingAddress(?\stdClass $shipping_address): ?self
     {
-        if (is_null($shipping_address)) return null;
+        if (is_null($shipping_address)) {
+            return null;
+        }
         return (new self())
             ->setCountryCode($shipping_address->country_code ?? null)
             ->setState($shipping_address->state ?? null)

@@ -19,16 +19,48 @@ class GeneralSection implements SectionInterface
      * @var bool
      */
     private $check_ip;
+    /**
+     * @var string
+     */
+    private $default_locale;
+    /**
+     * @var string
+     */
+    private $default_locale_path;
 
     /**
      * GeneralSection constructor.
      * @param AdminHandler $admin_handler
      * @param bool $check_ip
+     * @param string $default_locale
+     * @param string $default_locale_path
      */
-    public function __construct(AdminHandler $admin_handler, bool $check_ip)
-    {
+    public function __construct(
+        AdminHandler $admin_handler,
+        bool $check_ip,
+        string $default_locale,
+        string $default_locale_path
+    ) {
         $this->admin_handler = $admin_handler;
         $this->check_ip = $check_ip;
+        $this->default_locale = $default_locale;
+        $this->default_locale_path = $default_locale_path;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDefaultLocale(): string
+    {
+        return $this->default_locale;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDefaultLocalePath(): string
+    {
+        return $this->default_locale_path;
     }
 
     /**

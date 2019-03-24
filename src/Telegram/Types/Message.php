@@ -196,7 +196,9 @@ class Message
     public static function parseMessage(?\stdClass $message): ?self
     {
 
-        if (is_null($message)) return null;
+        if (is_null($message)) {
+            return null;
+        }
         return (new self())
             ->setMessageId($message->message_id ?? null)
             ->setFrom(User::parseUser($message->from ?? null))

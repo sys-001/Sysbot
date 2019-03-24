@@ -57,9 +57,11 @@ class InlineQueryResultDocument extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_document
      * @return null|InlineQueryResultDocument
      */
-    public static function parseInlineQueryResultDocument(?\stdClass $inline_query_result_document): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_document)) return null;
+    public static function parseInlineQueryResultDocument(?\stdClass $inline_query_result_document
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_document)) {
+            return null;
+        }
         return (new self())
             ->setTitle($inline_query_result_document->title ?? null)
             ->setCaption($inline_query_result_document->caption ?? null)

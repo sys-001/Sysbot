@@ -35,7 +35,9 @@ class ReplyKeyboardMarkup implements ReplyMarkupInterface
      */
     public static function parseReplyKeyboardMarkup(?\stdClass $reply_keyboard_markup): ?self
     {
-        if (is_null($reply_keyboard_markup)) return null;
+        if (is_null($reply_keyboard_markup)) {
+            return null;
+        }
         return (new self())
             ->setKeyboard($reply_keyboard_markup->keyboard ?? null)
             ->setResizeKeyboard($reply_keyboard_markup->resize_keyboard ?? false)

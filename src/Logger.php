@@ -26,18 +26,24 @@ class Logger
      * @var array
      */
     private $verbosity_levels = [0, 1, 2];
+    /**
+     * @var bool
+     */
+    private $force_log_output;
 
     /**
      * Logger constructor.
      * @param int $verbosity
      * @param string|null $file_path
+     * @param bool $force_log_output
      * @throws \Exception
      */
-    function __construct(int $verbosity = 0, string $file_path = null)
+    function __construct(int $verbosity = 0, string $file_path = null, bool $force_log_output = false)
     {
         if (!in_array($verbosity, $this->verbosity_levels)) {
             $verbosity = 0;
         }
+        $this->force_log_output = $force_log_output;
         $this->verbosity = $verbosity;
         $start = sprintf("[%s] Logger: Logger started.%s", date("d/m/y - H:i:s e"), PHP_EOL);
         if (empty($file_path) and php_sapi_name() === "cli") {
@@ -66,7 +72,7 @@ class Logger
     function log(string $message): void
     {
         $message = sprintf("[%s] %s%s", date("d/m/y - H:i:s e"), $message, PHP_EOL);
-        if ($this->is_cli) {
+        if ($this->is_cli or $this->force_log_output) {
             echo $message;
             return;
         }

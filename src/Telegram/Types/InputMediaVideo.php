@@ -55,7 +55,9 @@ class InputMediaVideo extends InputMedia
      */
     public static function parseInputMedia(?\stdClass $input_media_video): ?InputMediaInterface
     {
-        if (is_null($input_media_video)) return null;
+        if (is_null($input_media_video)) {
+            return null;
+        }
         return (new self())
             ->setThumb($input_media_video->thumb ?? null)
             ->setWidth($input_media_video->width ?? null)

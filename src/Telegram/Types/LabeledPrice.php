@@ -27,7 +27,9 @@ class LabeledPrice
      */
     public static function parseLabeledPrice(?\stdClass $labeled_price): ?self
     {
-        if (is_null($labeled_price)) return null;
+        if (is_null($labeled_price)) {
+            return null;
+        }
         return (new self())
             ->setLabel($labeled_price->label ?? null)
             ->setAmount($labeled_price->amount ?? null);
@@ -59,7 +61,9 @@ class LabeledPrice
      */
     public static function parseLabeledPrices(?array $labeled_prices): ?array
     {
-        if (is_null($labeled_prices)) return null;
+        if (is_null($labeled_prices)) {
+            return null;
+        }
         return array_map(['self', 'parseLabeledPrice'], $labeled_prices);
     }
 

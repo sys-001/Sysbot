@@ -33,9 +33,11 @@ class InlineQueryResultCachedAudio extends InlineQueryResult
      * @param null|\stdClass $inline_query_result_cached_audio
      * @return null|InlineQueryResultCachedAudio
      */
-    public static function parseInlineQueryResultCachedAudio(?\stdClass $inline_query_result_cached_audio): ?InlineQueryResultInterface
-    {
-        if (is_null($inline_query_result_cached_audio)) return null;
+    public static function parseInlineQueryResultCachedAudio(?\stdClass $inline_query_result_cached_audio
+    ): ?InlineQueryResultInterface {
+        if (is_null($inline_query_result_cached_audio)) {
+            return null;
+        }
         return (new self())
             ->setAudioFileId($inline_query_result_cached_audio->audio_file_id ?? null)
             ->setCaption($inline_query_result_cached_audio->caption ?? null)

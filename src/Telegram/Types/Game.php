@@ -43,7 +43,9 @@ class Game
      */
     public static function parseGame(?\stdClass $game): ?self
     {
-        if (is_null($game)) return null;
+        if (is_null($game)) {
+            return null;
+        }
         return (new self())
             ->setTitle($game->title ?? null)
             ->setDescription($game->description ?? null)

@@ -31,7 +31,9 @@ class KeyboardButton
      */
     public static function parseKeyboardButton(?\stdClass $keyboard_button): ?self
     {
-        if (is_null($keyboard_button)) return null;
+        if (is_null($keyboard_button)) {
+            return null;
+        }
         return (new self())
             ->setText($keyboard_button->text ?? null)
             ->setRequestContact($keyboard_button->request_contact ?? false)
@@ -74,7 +76,9 @@ class KeyboardButton
      */
     public static function parseKeyboardButtons(?array $keyboard_buttons): ?array
     {
-        if (is_null($keyboard_buttons)) return null;
+        if (is_null($keyboard_buttons)) {
+            return null;
+        }
         return array_map(['self', 'parseKeyboardButton'], $keyboard_buttons);
     }
 

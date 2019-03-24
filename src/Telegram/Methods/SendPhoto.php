@@ -70,9 +70,18 @@ class SendPhoto implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param ReplyMarkupInterface|null $reply_markup
      */
-    function __construct(string $chat_id, InputFile $photo, string $caption = null, string $parse_mode = null, bool $disable_notification = false, int $reply_to_message_id = null, ReplyMarkupInterface $reply_markup = null)
-    {
-        if ($photo->is_local) $this->multipart = true;
+    function __construct(
+        string $chat_id,
+        InputFile $photo,
+        string $caption = null,
+        string $parse_mode = null,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        ReplyMarkupInterface $reply_markup = null
+    ) {
+        if ($photo->is_local) {
+            $this->multipart = true;
+        }
         $this->chat_id = $chat_id;
         $this->photo = $photo->input_file;
         $this->caption = $caption;

@@ -29,9 +29,11 @@ class InputLocationMessageContent extends InputMessageContent
      * @param null|\stdClass $input_location_message_content
      * @return null|InputLocationMessageContent
      */
-    public static function parseInputMessageContent(?\stdClass $input_location_message_content): ?InputMessageContentInterface
-    {
-        if (is_null($input_location_message_content)) return null;
+    public static function parseInputMessageContent(?\stdClass $input_location_message_content
+    ): ?InputMessageContentInterface {
+        if (is_null($input_location_message_content)) {
+            return null;
+        }
         return (new self())
             ->setLatitude($input_location_message_content->latitude ?? null)
             ->setLongitude($input_location_message_content->longitude ?? null)

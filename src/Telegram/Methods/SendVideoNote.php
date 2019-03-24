@@ -75,9 +75,19 @@ class SendVideoNote implements MethodInterface
      * @param int|null $reply_to_message_id
      * @param ReplyMarkupInterface|null $reply_markup
      */
-    function __construct(string $chat_id, InputFile $video_note, int $duration = null, int $length = null, InputFile $thumb = null, bool $disable_notification = false, int $reply_to_message_id = null, ReplyMarkupInterface $reply_markup = null)
-    {
-        if ($video_note->is_local or $thumb->is_local) $this->multipart = true;
+    function __construct(
+        string $chat_id,
+        InputFile $video_note,
+        int $duration = null,
+        int $length = null,
+        InputFile $thumb = null,
+        bool $disable_notification = false,
+        int $reply_to_message_id = null,
+        ReplyMarkupInterface $reply_markup = null
+    ) {
+        if ($video_note->is_local or $thumb->is_local) {
+            $this->multipart = true;
+        }
         $this->chat_id = $chat_id;
         $this->video_note = $video_note->input_file;
         $this->duration = $duration;

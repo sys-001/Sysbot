@@ -47,7 +47,9 @@ class CallbackQuery
      */
     public static function parseCallbackQuery(?\stdClass $callback_query): ?self
     {
-        if (is_null($callback_query)) return null;
+        if (is_null($callback_query)) {
+            return null;
+        }
         return (new self())
             ->setId($callback_query->id ?? null)
             ->setFrom(User::parseUser($callback_query->from ?? null))

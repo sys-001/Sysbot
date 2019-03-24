@@ -47,7 +47,9 @@ class InlineKeyboardButton
      */
     public static function parseInlineKeyboardButton(?\stdClass $inline_keyboard_button): ?self
     {
-        if (is_null($inline_keyboard_button)) return null;
+        if (is_null($inline_keyboard_button)) {
+            return null;
+        }
         return (new self())
             ->setText($inline_keyboard_button->text ?? null)
             ->setUrl($inline_keyboard_button->url ?? '')
@@ -134,7 +136,9 @@ class InlineKeyboardButton
      */
     public static function parseInlineKeyboardButtons(?array $inline_keyboard_buttons): ?array
     {
-        if (is_null($inline_keyboard_buttons)) return null;
+        if (is_null($inline_keyboard_buttons)) {
+            return null;
+        }
         return array_map(['self', 'parseInlineKeyboardButton'], $inline_keyboard_buttons);
     }
 }

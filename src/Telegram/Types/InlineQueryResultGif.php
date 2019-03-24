@@ -55,7 +55,9 @@ class InlineQueryResultGif extends InlineQueryResult
      */
     public static function parseInlineQueryResultGif(?\stdClass $inline_query_result_gif): ?InlineQueryResultInterface
     {
-        if (is_null($inline_query_result_gif)) return null;
+        if (is_null($inline_query_result_gif)) {
+            return null;
+        }
         return (new self())
             ->setGifUrl($inline_query_result_gif->gif_url ?? null)
             ->setGifWidth($inline_query_result_gif->gif_width ?? null)

@@ -27,7 +27,9 @@ class ChatPhoto
      */
     public static function parseChatPhoto(?\stdClass $chat_photo): ?self
     {
-        if (is_null($chat_photo)) return null;
+        if (is_null($chat_photo)) {
+            return null;
+        }
         return (new self())
             ->setSmallFileId($chat_photo->small_file_id ?? null)
             ->setBigFileId($chat_photo->big_file_id ?? null);
