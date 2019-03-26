@@ -3,6 +3,7 @@
 namespace TelegramBot\Addons;
 
 
+use TelegramBot\Exception\LocalizationProviderException;
 use TelegramBot\TelegramBot;
 
 /**
@@ -52,7 +53,12 @@ class AntifloodAddon extends DefaultAddon
                 $ban_duration = $antiflood_settings->getBanSeconds();
                 $cache->save($user_id, ["messages" => $messages, "first_date" => $timestamp, "is_banned" => true],
                     $ban_duration);
-                $bot->sendMessage($antiflood_settings->getBanMessage());
+                try {
+                    $ban_message = $bot->getLanguageValue('antiflood_ban');
+                } catch (LocalizationProviderException $e) {
+                    $ban_message = $antiflood_settings->getBanMessage();
+                }
+                $bot->sendMessage($ban_message);
                 return false;
             } elseif ($time_diff > $antiflood_seconds) {
                 $cache->delete($user_id);

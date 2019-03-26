@@ -22,7 +22,27 @@ class ExceptionHandler
     {
         $this->logger = $logger;
         set_error_handler([$this, 'errorToException'], E_ERROR | E_PARSE);
+        if ($logger->getVerbosity() == 1) {
+            set_error_handler([$this, 'warningLogger'], E_WARNING | E_NOTICE);
+        }
         set_exception_handler([$this, 'realHandler']);
+    }
+
+    /**
+     * @param $severity
+     * @param $message
+     * @param $file
+     * @param $line
+     */
+    function warningLogger($severity, $message, $file, $line): void
+    {
+        if (!(error_reporting() & $severity)) {
+            return;
+        }
+        $log_message = sprintf("WarningHandler: '%s' in '%s' (line %d)",
+            $message, $file ?? '', $line ?? '');
+        $this->logger->log($log_message);
+        return;
     }
 
     /**

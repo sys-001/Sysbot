@@ -16,7 +16,7 @@ class EditMessageReplyMarkup implements MethodInterface
     /**
      *
      */
-    private const METHOD_NAME = "editMessageReplyMarkupInterface";
+    private const METHOD_NAME = "editMessageReplyMarkup";
     /**
      *
      */

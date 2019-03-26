@@ -32,7 +32,7 @@ class TelegramBot
     /**
      *
      */
-    public const BOT_VERSION = "1.0.3";
+    public const BOT_VERSION = "1.0.4";
     /**
      *
      */
@@ -118,7 +118,7 @@ class TelegramBot
     ) {
         $this->logger = new Logger($log_verbosity, $log_path, $force_log_output);
         $this->exception_handler = new ExceptionHandler($this->logger);
-        $this->token = str_replace("bot", "", $token);
+        $this->token = str_replace('bot', '', $token);
         $this->settings_provider = new SettingsProvider($this->logger, $settings_path);
         $this->entity_manager = $entity_manager;
         $this->event_handler = new EventHandler();
@@ -132,9 +132,9 @@ class TelegramBot
         $this->localization_provider = new LocalizationProvider($general_settings->getDefaultLocale(),
             $general_settings->getDefaultLocalePath());
         $this->addLanguages();
-        if ($this->logger->getVerbosity() >= 1) {
-            $log_message = sprintf("TelegramBot: New TelegramBot instance created (Token: '%s', Settings path: '%s', Logger verbosity: '%d', Logger path: '%s')",
-                $this->token, $settings_path, $log_verbosity, $log_path);
+        if ($this->logger->getVerbosity() == 2) {
+            $log_message = sprintf("TelegramBot: New TelegramBot instance created (Token hash: '%s', Settings path: '%s', Logger verbosity: '%d', Logger path: '%s')",
+                hash('sha512', $this->token), $settings_path, $log_verbosity, $log_path);
             $this->logger->log($log_message);
         }
         if ($this->settings->getTelegramSection()->getUseTestApi()) {
@@ -346,6 +346,22 @@ class TelegramBot
      */
     private function addInternalEvents(): void
     {
+        $halt_trigger = new Trigger('/halt');
+        $halt_event = new MessageTextEvent($halt_trigger, function () {
+            if (!$this->use_polling) {
+                return;
+            }
+            try {
+                $text = $this->getLanguageValue('bot_halted');
+            } catch (LocalizationProviderException $e) {
+                $text = 'Bot halted.';
+            }
+            $this->sendMessage($text);
+            $offset = $this->update->update_id;
+            $offset++;
+            $this->getUpdates(['offset' => $offset, 'limit' => 1]);
+            exit;
+        }, true);
         $auth_trigger = new Trigger('/gen_auth');
         $auth_event = new MessageTextEvent($auth_trigger, function () {
             $auth_token = bin2hex(random_bytes(8));
@@ -354,16 +370,24 @@ class TelegramBot
             shmop_write($mem, time(), 0);
             $auth_hash = hash('sha512', $auth_token);
             shmop_write($mem, $auth_hash, 10);
-            $text = sprintf('Your authorization token is: <code>%s</code>.%sIt will connect your web browser to this user profile, and it will expire after using it (or after 300 seconds).',
-                $auth_token, PHP_EOL);
+            try {
+                $text = $this->getLanguageValue('auth_token');
+            } catch (LocalizationProviderException $e) {
+                $text = 'Your authorization token is:';
+            }
+            $text = sprintf('%s <code>%s</code>.', $text, $auth_token);
             $this->sendMessage($text);
         }, true);
         $change_locale_trigger = new Trigger('/change_locale');
         $change_locale_event = new MessageTextEvent($change_locale_trigger, function () {
             $locale = $this->updateUserLocale();
             if (null != $locale) {
-                $text = sprintf('Cannot change locale, there is only one language available: <code>%s</code>.',
-                    $locale);
+                try {
+                    $single_locale = $this->getLanguageValue('single_locale');
+                } catch (LocalizationProviderException $e) {
+                    $single_locale = 'Cannot change locale, there is only one language available:';
+                }
+                $text = sprintf('%s <code>%s</code>.', $single_locale, $locale);
                 $this->sendMessage($text);
             }
         });
@@ -372,12 +396,93 @@ class TelegramBot
             $callback_query = $this->update->callback_query;
             $locale = explode(':', $callback_query->data)[1];
             $this->addUser($callback_query->from->id, $locale);
-            $text = sprintf('Language set. From now on, you are using: <code>%s</code>.', $locale);
+            try {
+                $locale_changed = $this->getLanguageValue('locale_changed');
+            } catch (LocalizationProviderException $e) {
+                $locale_changed = 'Language set. From now on, you are using:';
+            }
+            $text = sprintf('%s <code>%s</code>.', $locale_changed, $locale);
             $this->editMessageText($text, false, $callback_query->message->message_id);
         });
+        $this->event_handler->addInternalEvent($halt_event);
         $this->event_handler->addInternalEvent($auth_event);
         $this->event_handler->addInternalEvent($set_locale_event);
         $this->event_handler->addInternalEvent($change_locale_event);
+    }
+
+    /**
+     * @param string $key
+     * @param string|null $locale
+     * @return string
+     * @throws LocalizationProviderException
+     * @throws TelegramBotException
+     */
+    public function getLanguageValue(string $key, string $locale = null): string
+    {
+        $update_data = $this->update->{$this->update->type};
+        $user = $update_data->from;
+        if (null == $locale) {
+            $locale = $this->getUserLocale($user);
+        }
+        if (null == $locale) {
+            throw new TelegramBotException("Could not get user locale");
+        }
+        return $this->localization_provider->getLanguageField($locale, $key);
+    }
+
+    /**
+     * @param Types\User $user
+     * @return string
+     * @throws TelegramBotException
+     */
+    private function getUserLocale(Types\User $user): ?string
+    {
+        $locale = $this->getUserData($user->id) ?? $user->language_code ?? null;
+        if (is_object($locale)) {
+            return $locale->getLanguageCode();
+        }
+        if (null != $locale) {
+            return $locale;
+        }
+        return $this->updateUserLocale();
+    }
+
+    /**
+     * @param int $user_id
+     * @return object|null
+     */
+    public function getUserData(int $user_id): ?User
+    {
+        return $this->entity_manager->getRepository('TelegramBot\DBEntity\User')->find($user_id);
+    }
+
+    /**
+     * @return mixed
+     * @throws TelegramBotException
+     */
+    private function updateUserLocale(): ?string
+    {
+        $available_languages = $this->localization_provider->getLanguages();
+        if (1 === count($available_languages)) {
+            return $available_languages[0];
+        }
+        $callback = 'set_locale:%s';
+        $buttons = [];
+        foreach ($available_languages as $available_language) {
+            $buttons[] = KeyboardUtil::generateInlineKeyboardButton($available_language, 'callback_data',
+                sprintf($callback, $available_language));
+        }
+        $total_buttons = count($buttons);
+        $columns = floor(sqrt($total_buttons));
+        $rows_count = ceil($total_buttons / $columns);
+        $rows = array_chunk($buttons, $rows_count);
+        $keyboard = [];
+        foreach ($rows as $row) {
+            $keyboard[] = KeyboardUtil::generateInlineKeyboardRow($row);
+        }
+        $this->sendMessage("Select your language:", null,
+            ["reply_markup" => KeyboardUtil::generateInlineKeyboard($keyboard)]);
+        return null;
     }
 
     /**
@@ -421,32 +526,17 @@ class TelegramBot
     }
 
     /**
-     * @return mixed
-     * @throws TelegramBotException
+     * @param array $params
+     * @return null|Response
      */
-    private function updateUserLocale(): ?string
+    public function getUpdates(array $params = []): ?Response
     {
-        $available_languages = $this->localization_provider->getLanguages();
-        if (1 === count($available_languages)) {
-            return $available_languages[0];
-        }
-        $callback = 'set_locale:%s';
-        $buttons = [];
-        foreach ($available_languages as $available_language) {
-            $buttons[] = KeyboardUtil::generateInlineKeyboardButton($available_language, 'callback_data',
-                sprintf($callback, $available_language));
-        }
-        $total_buttons = count($buttons);
-        $columns = floor(sqrt($total_buttons));
-        $rows_count = ceil($total_buttons / $columns);
-        $rows = array_chunk($buttons, $rows_count);
-        $keyboard = [];
-        foreach ($rows as $row) {
-            $keyboard[] = KeyboardUtil::generateInlineKeyboardRow($row);
-        }
-        $this->sendMessage("Select your language:", null,
-            ["reply_markup" => KeyboardUtil::generateInlineKeyboard($keyboard)]);
-        return null;
+        return $this->sendRequest(new Methods\GetUpdates(
+            $params['offset'] ?? 0,
+            $params['limit'] ?? 100,
+            $params['timeout'] ?? 0,
+            $params['allowed_updates'] ?? []
+        ));
     }
 
     /**
@@ -1845,10 +1935,6 @@ class TelegramBot
                 $this->logger->log("TelegramBot: Long Polling mode started.");
             }
             $offset = 0;
-            $admin_handler = $this->settings->getGeneralSection()->getAdminHandler();
-            foreach ($admin_handler->getAdmins() as $admin) {
-                $this->sendMessage("Bot started correctly.", $admin);
-            }
             while (true) {
                 $response = $this->getUpdates(['offset' => $offset]);
                 if (null === $response->result) {
@@ -1859,12 +1945,6 @@ class TelegramBot
                     if ($this->settings->getMaintenanceSection()->isEnabled() and $update->message->chat->type === "private") {
                         $this->sendMessage($this->settings->getMaintenanceSection()->getMessage());
                         continue;
-                    }
-                    if (isset($update->message->text) and $update->message->text === "/halt" and $admin_handler->isAdmin($update->message->from->id)) {
-                        $this->sendMessage("Shutting down...");
-                        $offset++;
-                        $this->getUpdates(['offset' => $offset, 'limit' => 1]);
-                        exit;
                     }
                     $results = $this->processUpdate($update);
                     if (!empty($results)) {
@@ -1883,20 +1963,6 @@ class TelegramBot
             }
         }
         return;
-    }
-
-    /**
-     * @param array $params
-     * @return null|Response
-     */
-    public function getUpdates(array $params = []): ?Response
-    {
-        return $this->sendRequest(new Methods\GetUpdates(
-            $params['offset'] ?? 0,
-            $params['limit'] ?? 100,
-            $params['timeout'] ?? 0,
-            $params['allowed_updates'] ?? []
-        ));
     }
 
     /**
@@ -1938,32 +2004,6 @@ class TelegramBot
         }
         $results = $this->event_handler->processEvents($this, $this->update);
         return $results;
-    }
-
-    /**
-     * @param int $user_id
-     * @return object|null
-     */
-    public function getUserData(int $user_id): ?User
-    {
-        return $this->entity_manager->getRepository('TelegramBot\DBEntity\User')->find($user_id);
-    }
-
-    /**
-     * @param Types\User $user
-     * @return string
-     * @throws TelegramBotException
-     */
-    private function getUserLocale(Types\User $user): ?string
-    {
-        $locale = $this->getUserData($user->id) ?? $user->language_code ?? null;
-        if (is_object($locale)) {
-            return $locale->getLanguageCode();
-        }
-        if (null != $locale) {
-            return $locale;
-        }
-        return $this->updateUserLocale();
     }
 
     /**
@@ -2053,26 +2093,6 @@ class TelegramBot
     public function getCurrentUpdate(): ?Update
     {
         return $this->update;
-    }
-
-    /**
-     * @param string $key
-     * @param string|null $locale
-     * @return string
-     * @throws LocalizationProviderException
-     * @throws TelegramBotException
-     */
-    public function getLanguageValue(string $key, string $locale = null): string
-    {
-        $update_data = $this->update->{$this->update->type};
-        $user = $update_data->from;
-        if (null == $locale) {
-            $locale = $this->getUserLocale($user);
-        }
-        if (null == $locale) {
-            throw new TelegramBotException("Could not get user locale");
-        }
-        return $this->localization_provider->getLanguageField($locale, $key);
     }
 
     /**

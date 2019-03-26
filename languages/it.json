@@ -1,4 +1,9 @@
 {
+  "bot_halted": "Bot arrestato.",
+  "auth_token": "Il tuo token di accesso è:",
+  "antiflood_ban": "Flood rilevato, sei stato bannato dall'utilizzo del bot per 2 minuti.",
+  "single_locale": "Impossibile cambiare localizzazione, c'è solo una lingua disponibile:",
+  "locale_changed": "Lingua impostata correttamente. Da ora in poi, userai:",
   "greetings": "Ciao!",
   "greetings_kb": "Ciao (con reply keyboard)!",
   "greetings_remove_kb": "Ciao (con reply keyboard rimossa)!",

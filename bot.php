@@ -13,8 +13,8 @@ define('SETTINGS_PATH', 'config/settings.json');
 /**
  * Log verbosity:
  * 0 - Only Errors
- * 1 - Errors and SettingsProvider operations
- * 2 - Errors, SettingsProvider and TelegramBot operations (updates and requests included)
+ * 1 - Errors and Warnings
+ * 2 - Almost everything (updates and responses included)
  */
 define('LOG_VERBOSITY', 1);
 

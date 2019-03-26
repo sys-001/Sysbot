@@ -38,7 +38,7 @@ class SettingsProvider
             $this->path = $path;
         }
         $this->logger = $logger;
-        if ($this->logger->getVerbosity() >= 1) {
+        if ($this->logger->getVerbosity() == 2) {
             $log_message = sprintf("SettingsProvider: New SettingsProvider instance created. (Settings path: '%s')",
                 $this->path);
             $this->logger->log($log_message);
@@ -52,7 +52,7 @@ class SettingsProvider
     public function setPath(string $path): self
     {
         $this->path = $path;
-        if ($this->logger->getVerbosity() >= 1) {
+        if ($this->logger->getVerbosity() == 2) {
             $log_message = sprintf("SettingsProvider: Settings path changed to '%s'.", $path);
             $this->logger->log($log_message);
         }
@@ -102,7 +102,7 @@ class SettingsProvider
         $antiflood = new Sections\AntifloodSection($antiflood_enabled, $antiflood_seconds, $antiflood_messages_number,
             $antiflood_ban_seconds, $antiflood_ban_message);
         $this->settings = new Settings($general, $telegram, $maintenance, $antiflood);
-        if ($this->logger->getVerbosity() >= 1) {
+        if ($this->logger->getVerbosity() == 2) {
             $log_message = sprintf("SettingsProvider: New Settings instance created. (%s)", json_encode([
                 'general' => [
                     'admins' => $admin_handler->getAdmins(),
@@ -170,7 +170,7 @@ class SettingsProvider
         if (false === $result) {
             throw new SettingsProviderException("Could not save settings");
         }
-        if ($this->logger->getVerbosity() >= 1) {
+        if ($this->logger->getVerbosity() == 2) {
             $log_message = sprintf("SettingsProvider: Settings saved to path '%s'. (%s)", $this->path, $settings_json);
             $this->logger->log($log_message);
         }
@@ -210,7 +210,7 @@ class SettingsProvider
             $settings->antiflood->messages_seconds, $settings->antiflood->messages_number,
             $settings->antiflood->ban_seconds, $settings->antiflood->ban_message);
         $this->settings = new Settings($general_section, $telegram_section, $maintenance_section, $antiflood_section);
-        if ($this->logger->getVerbosity() >= 1) {
+        if ($this->logger->getVerbosity() == 2) {
             $log_message = sprintf("SettingsProvider: Settings loaded from file at path '%s'. (%s)", $this->path,
                 $settings_file);
             $this->logger->log($log_message);

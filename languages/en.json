@@ -1,4 +1,9 @@
 {
+  "bot_halted": "Bot halted.",
+  "auth_token": "Your authorization token is:",
+  "antiflood_ban": "Flood detected, you're banned for 2 minutes.",
+  "single_locale": "Cannot change locale, there is only one language available:",
+  "locale_changed": "Language set. From now on, you are using:",
   "greetings": "Hi!",
   "greetings_kb": "Hi with reply keyboard!",
   "greetings_remove_kb": "Hi with reply keyboard removed!",
