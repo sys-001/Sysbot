@@ -32,7 +32,7 @@ class TelegramBot
     /**
      *
      */
-    public const BOT_VERSION = "1.0.4";
+    public const BOT_VERSION = "1.0.5";
     /**
      *
      */

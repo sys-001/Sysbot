@@ -213,7 +213,7 @@ class Chat
      * @param mixed $id
      * @return Chat
      */
-    public function setId(?int $id): self
+    public function setId(?float $id): self
     {
         $this->id = $id;
         return $this;
