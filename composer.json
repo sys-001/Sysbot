@@ -1,0 +1,21 @@
+{
+  "name": "sys-001/sysbot-minimal",
+  "description": "A minimal PHP Telegram bot framework.",
+  "type": "project",
+  "require": {
+    "ext-json": "*",
+    "php": "^7.3",
+    "guzzlehttp/guzzle": "~6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Sysbot\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "sys-001",
+      "email": "honfu7891@etlgr.com"
+    }
+  ]
+}
